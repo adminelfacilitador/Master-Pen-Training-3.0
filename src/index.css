@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #0c0d0f;
+    color: #e5e5e7;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-serif-gold {
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* Custom Old Gold & Matte Black Palette */
+:root {
+  --gold-primary: #d4af37;
+  --gold-antique: #c5a059;
+  --gold-light: #f5e2a3;
+  --gold-deep: #8a6c25;
+  --black-matte: #0e0f12;
+  --black-surface: #14161b;
+  --black-elevated: #1a1d24;
+}
+
+/* Gold Gradient Text & Borders */
+.gold-gradient-text {
+  background: linear-gradient(135deg, #fceec5 0%, #d4af37 40%, #c5a059 70%, #8a6c25 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-gradient-border {
+  border-image: linear-gradient(135deg, #d4af37 0%, #8a6c25 50%, #c5a059 100%) 1;
+}
+
+.gold-border-glow {
+  box-shadow: 0 0 20px -5px rgba(212, 175, 55, 0.25);
+}
+
+.gold-box-shadow {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8), 0 0 1px 1px rgba(212, 175, 55, 0.3);
+}
+
+/* Security Protected Elements */
+.user-select-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Texture Pattern */
+.bg-textured-matte {
+  background-color: #0d0e12;
+  background-image: radial-gradient(rgba(212, 175, 55, 0.05) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+

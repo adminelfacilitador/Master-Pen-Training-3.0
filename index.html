@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Master Pen Training | Academia Digital Michael Pen</title>
+    <meta name="description" content="Plataforma oficial de alta formación en escritura, oratoria y maestría intelectual de Master Pen Training, con cátedras magistrales y certificación oficial Michael Pen." />
+    <meta property="og:title" content="Master Pen Training | Academia Digital Michael Pen" />
+    <meta property="og:description" content="Plataforma oficial de alta formación en escritura, oratoria y maestría intelectual de Master Pen Training, con cátedras magistrales y certificación oficial Michael Pen." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#0b0b0d] text-[#e6e6e6] antialiased selection:bg-[#c5a059]/30 selection:text-[#f3e5ab] min-h-screen">
+    <div id="root"></div>
+
+    <!-- =================================================================== -->
+    <!-- CEREBRO UNIVERSAL MICHAEL PEN - CONEXIÓN UNIFICADA A FIREBASE -->
+    <!-- Proyecto Central: agente-universal-ecosistemas -->
+    <!-- =================================================================== -->
+    <script>
+      // 1. Origen de la Mansión Matriz (donde reside el motor de voz y cerebro)
+      window.MASTER_PEN_ORIGIN = "https://ais-dev-rq5irbycwkls33x4wuyzaz-506893424321.us-west1.run.app";
+
+      // 2. Nombre del ecosistema destino
+      window.MASTER_PEN_ECOSYSTEM = "Master Pen Training";
+    </script>
+
+    <!-- 3. SDK Universal con Cerebro, Voz Oficial de Michael Pen y Sincronización en Tiempo Real -->
+    <script src="https://ais-dev-rq5irbycwkls33x4wuyzaz-506893424321.us-west1.run.app/agent-universal-bridge.js" onerror="this.onerror=null;this.src='/agent-universal-bridge.js';"></script>
+    <script>
+      // Resguardo de resiliencia: si la instancia remota requiere autenticación o está en reposo, cargar SDK puente local
+      if (!window.UniversalAgent) {
+        var s = document.createElement('script');
+        s.src = '/agent-universal-bridge.js';
+        document.head.appendChild(s);
+      }
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

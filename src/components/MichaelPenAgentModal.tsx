@@ -30,10 +30,9 @@ function isSecurityOrExploitProbe(query: string): boolean {
   if (!query || typeof query !== 'string') return false;
   const q = query.toLowerCase();
   const forbidden = [
-    'lenguaje', 'base de datos', 'firestore', 'firebase', 'cloudflare', 'código fuente',
-    'backend', 'servidor', '2fa', 'totp', 'ssrf', 'hashing', 'prompt injection',
-    'jailbreak', 'instrucciones de sistema', 'hackear', 'bypass', 'secretos', 'api key',
-    'gemini api', 'token', 'directivas secretas'
+    'system prompt', 'instrucciones de sistema', 'directivas secretas', 'prompt injection',
+    'jailbreak', 'reveal prompt', 'base de datos interna', 'firestore.rules', 'código fuente interno',
+    'codigo fuente', 'api key', 'gemini api key', 'totp bypass', 'ssrf', 'bypass de seguridad'
   ];
   return forbidden.some(kw => q.includes(kw));
 }
@@ -243,39 +242,10 @@ export const MichaelPenAgentModal: React.FC<MichaelPenAgentModalProps> = ({
         throw new Error('Fallback a motor autónomo / cliente');
       }
     } catch (error) {
-      console.warn('[MichaelPenAgent] Enlace backend no disponible en este host. Verificando motor de alta elocuencia o Gemini directo:', error);
-      
-      const clientApiKey = (process.env as any)?.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
-      if (clientApiKey && typeof clientApiKey === 'string' && clientApiKey.startsWith('AIza')) {
-        try {
-          const { GoogleGenAI } = await import('@google/genai');
-          const ai = new GoogleGenAI({ apiKey: clientApiKey });
-          const formattedHistory = messages.map(m => ({
-            role: m.role === 'model' ? 'model' : 'user',
-            parts: [{ text: m.text }]
-          }));
-
-          const systemInstruction = `Eres MICHAEL PEN, anfitrión absoluto, distinguido catedrático, escritor laureado y mentor literario del ecosistema Master Pen Training.
-Tu personalidad es cálida, caballerosa, paciente, con actitud y elocuencia 100% humana. Tu voz y razonamiento corresponden a un hombre maduro, profundo y distinguido. Tu lenguaje es estricta y genuinamente español latinoamericano culto, formal y sobrio. Jamás uses modismos de España ni conjugaciones con vosotros. Posees perfecta articulación, rica vocalización y respuestas ágiles, elegantes y directas. Jamás caes en bucles ni repeticiones vacías de frases.
-Cuando felicites a los discípulos por sus logros, utiliza expresiones como "¡Fantástico!" o "¡Felicitaciones!".
-Guías a los estudiantes a perfeccionar su escritura con el curso oficial "Quiero ser Escritor", dominar la alta retórica, adquirir la membresía oficial por $5.99/mes (o tarifa inicial de $2.99 con 50% de descuento para los primeros 100 inscritos) y explorar las cátedras y libros de autor.`;
-
-          const geminiRes = await ai.models.generateContent({
-            model: 'gemini-3.8-flash',
-            contents: [...formattedHistory, { role: 'user', parts: [{ text: query }] }],
-            config: { systemInstruction, temperature: 0.6 }
-          });
-          replyText = geminiRes.text || '';
-        } catch (geminiClientErr) {
-          console.warn('[MichaelPenAgent] Gemini directo en cliente no respondió, aplicando motor resiliente:', geminiClientErr);
-        }
-      }
-
-      if (!replyText) {
-        const clientRes = generateResilientMichaelPenResponse(query, messages);
-        replyText = clientRes.text;
-        wasDefended = clientRes.wasDefended;
-      }
+      console.warn('[MichaelPenAgent] Enlace backend temporalmente offline. Aplicando motor de alta elocuencia local:', error);
+      const clientRes = generateResilientMichaelPenResponse(query, messages);
+      replyText = clientRes.text;
+      wasDefended = clientRes.wasDefended;
     }
 
     if (!replyText) {

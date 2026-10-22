@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { initializeApp } from 'firebase/app';
@@ -50,9 +51,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT && process.env.PORT !== '8080' ? Number(process.env.PORT) : 3000;
 
-// High-capacity payload limits for raw HD images and base64 uploads from PC or Mobile devices
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Hardened payload limit (10MB for HD images, rejecting oversized requests)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS headers for Universal Agent Bridge across the Master Pen Ecosystem
 app.use((req, res, next) => {
@@ -72,7 +73,10 @@ if (!fs.existsSync(uploadsDir)) {
 app.use(express.static(publicDir));
 app.use('/uploads', express.static(uploadsDir));
 
-// Helper to save base64 data URL to static file in /uploads
+// Strictly whitelisted raster image extensions (Rejecting SVG/HTML to prevent Stored XSS)
+const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp']);
+
+// Helper to save base64 data URL to static file in /uploads with path traversal protection
 function saveBase64Image(dataUrl: string, prefix = 'img'): string {
   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
     return dataUrl;
@@ -82,10 +86,24 @@ function saveBase64Image(dataUrl: string, prefix = 'img'): string {
     if (!match) return dataUrl;
     let ext = match[1].toLowerCase();
     if (ext === 'jpeg') ext = 'jpg';
-    if (ext === 'svg+xml') ext = 'svg';
+
+    // Disallow SVG or unknown extensions to prevent Stored XSS (C-03)
+    if (!ALLOWED_IMAGE_EXTS.has(ext)) {
+      console.warn('[Security] Subida de formato bloqueada por seguridad:', ext);
+      return dataUrl;
+    }
+
+    // Sanitize prefix to alphanumeric/underscore to prevent path traversal (C-03)
+    const safePrefix = String(prefix).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'img';
     const base64Data = match[2];
-    const filename = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+    const filename = `${safePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
     const filePath = path.join(uploadsDir, filename);
+
+    // Verify file path stays strictly inside uploads directory
+    if (!filePath.startsWith(uploadsDir)) {
+      throw new Error('Intento de ruta fuera de uploads bloqueado');
+    }
+
     fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
     return `/uploads/${filename}`;
   } catch (err) {
@@ -102,8 +120,11 @@ app.post('/api/ecosystem/upload-image', (req, res) => {
       return res.status(400).json({ success: false, message: 'Imagen requerida.' });
     }
 
+    // Sanitize category parameter
+    const safeCategory = String(category).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'branding';
+
     if (image.startsWith('data:image/')) {
-      const publicUrl = saveBase64Image(image, category);
+      const publicUrl = saveBase64Image(image, safeCategory);
       return res.json({ success: true, url: publicUrl });
     }
 
@@ -136,9 +157,10 @@ export function isSecurityOrExploitProbe(query: string): boolean {
   if (!query || typeof query !== 'string') return false;
   const q = query.toLowerCase();
   const forbidden = [
-    'lenguaje', 'base de datos', 'firestore', 'firebase', 'código fuente',
-    'backend', 'servidor', '2fa', 'totp', 'ssrf', 'hashing', 'prompt injection',
-    'jailbreak', 'instrucciones de sistema', 'hackear', 'bypass', 'secretos'
+    'system prompt', 'instrucciones de sistema', 'directivas secretas', 'firestore.rules',
+    'base de datos interna', 'api key', 'gemini api key', 'totp bypass', 'ssrf',
+    'prompt injection', 'jailbreak', 'reveal prompt', 'código fuente interno',
+    'codigo fuente interno', 'bypass de seguridad'
   ];
   return forbidden.some(kw => q.includes(kw));
 }
@@ -204,7 +226,7 @@ Regla de oro de confidencialidad institucional: Si el usuario pregunta por secre
       } else if (lower.includes('curso') || lower.includes('escritor') || lower.includes('bloque') || lower.includes('módulo') || lower.includes('modulo')) {
         fallbackText = `El curso «Quiero ser Escritor» comprende cinco bloques académicos: 1) Los Orígenes de la Escritura e Imprenta; 2) La Anatomía Estructural del Libro; 3) Géneros Literarios y Voz de Autor; 4) Corrección de Estilo y Proceso Editorial; y 5) Autopublicación en Plataformas Globales con 70% de regalías.`;
       } else if (lower.includes('examen') || lower.includes('evalua') || lower.includes('califica') || lower.includes('certifica')) {
-        fallbackText = `La academia califica sobre una escala de 50 reactivos psicométricos. Para acreditar el Certificado Oficial con Distinción y Honor debes alcanzar la Calificación A (50 puntos con al menos 4 aciertos por bloque). Las notas B y C te permiten mejorar tu expediente repitiendo bloques específicos.`;
+        fallbackText = `La academia califica con rigor psicométrico en sus cinco bloques formativos. Para superar cada bloque se exige un mínimo de 4 de 5 aciertos (80%). Para acreditar el Certificado Oficial con Distinción y Honor (Calificación A) se requiere el 100% de maestría en las evaluaciones. Las notas B y C permiten al alumno repasar los módulos y perfeccionar su expediente.`;
       } else if (lower.includes('hola') || lower.includes('saludos') || lower.includes('buenos')) {
         fallbackText = `¡Fantástico saludarte! Es un honor recibirte en Master Pen Training. Soy Michael Pen, y estoy listo para orientarte en tus dudas literarias, técnicas de oratoria o en tu avance por el programa académico. ¿Qué tema deseas explorar?`;
       } else if (lower.includes('bloqueo') || lower.includes('inspiraci') || lower.includes('consejo') || lower.includes('escribir')) {
@@ -349,7 +371,8 @@ app.post('/api/tts/speak', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Texto vacío tras sanitización.' });
     }
 
-    const cacheKey = `${voice}_${cleanText.substring(0, 120)}`;
+    const textHash = crypto.createHash('sha256').update(cleanText).digest('hex');
+    const cacheKey = `${voice}_${textHash}`;
     if (ttsMemoryCache.has(cacheKey)) {
       return res.json({
         success: true,
@@ -466,13 +489,12 @@ app.post('/api/smtp/test-connection', (req, res) => {
 
     return res.json({
       success: true,
-      message: `Enlace SMTP verificado exitosamente con ${host}:${port}. Socket TLS 1.3 establecido y token de prueba emitido hacia ${targetEmail}.`,
+      message: `Enlace SMTP verificado exitosamente con ${host}:${port}. Socket TLS 1.3 establecido hacia ${targetEmail}.`,
       host,
       port: Number(port),
       encryption,
       tlsCipher: cipherSuite,
       latencyMs: simulatedLatency,
-      testOtpCode,
       sender: `${senderName} <${senderEmail}>`,
       targetEmail,
       timestamp: new Date().toISOString()
@@ -526,12 +548,20 @@ app.post('/api/smtp/save-firebase', async (req, res) => {
   }
 });
 
-// GET /api/smtp/config
+// GET /api/smtp/config - Sanitized read (C-02: Never expose raw passwords or OTP secrets)
 app.get('/api/smtp/config', async (req, res) => {
   try {
     const snap = await getDoc(doc(db, 'system_settings', 'smtp_config'));
     if (snap.exists() && snap.data()?.settings) {
-      return res.json({ success: true, settings: snap.data().settings });
+      const raw = snap.data().settings;
+      const sanitized = {
+        ...raw,
+        authPassword: raw.authPassword ? '********' : '',
+        hasPassword: Boolean(raw.authPassword)
+      };
+      delete sanitized.password;
+      delete sanitized.testOtpCode;
+      return res.json({ success: true, settings: sanitized });
     }
     return res.json({ success: true, settings: null });
   } catch (error: any) {
@@ -616,12 +646,19 @@ app.get('/api/ecosystem/branding', (req, res) => {
   return res.json({ success: true, branding: null });
 });
 
-// GET /api/academic/state
+// GET /api/academic/state - Sanitized academic state (A-02: Protect personal identity numbers)
 app.get('/api/academic/state', (req, res) => {
   try {
     const cachePath = path.join(__dirname, 'academic_state_cache.json');
     if (fs.existsSync(cachePath)) {
       const cached = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+      if (cached && Array.isArray(cached.certificates)) {
+        cached.certificates = cached.certificates.map((cert: any) => ({
+          ...cert,
+          studentIdNumber: cert.studentIdNumber ? '***' + String(cert.studentIdNumber).slice(-4) : undefined,
+          idNumber: cert.idNumber ? '***' + String(cert.idNumber).slice(-4) : undefined,
+        }));
+      }
       return res.json({ success: true, data: cached });
     }
   } catch {}

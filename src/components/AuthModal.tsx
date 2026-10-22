@@ -38,9 +38,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Active step: 'admin_credentials' | 'totp_phone' | 'smtp_reset_request' | 'smtp_reset_confirm' | 'smtp_config'
   const [step, setStep] = useState<'admin_credentials' | 'totp_phone' | 'smtp_reset_request' | 'smtp_reset_confirm' | 'smtp_config'>('admin_credentials');
   
-  // Login credentials state
-  const [email, setEmail] = useState('admin@masterpentraining.com');
-  const [password, setPassword] = useState('MichaelPenMaster2026!#');
+  // Login credentials state (Clean initial state without pre-filled secrets)
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   
   // 2FA Google Authenticator Phone Simulator state
   const [simulatedTotpCode, setSimulatedTotpCode] = useState('847291');
@@ -50,7 +50,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
 
   // SMTP Password Reset state
-  const [smtpResetEmail, setSmtpResetEmail] = useState('admin@masterpentraining.com');
+  const [smtpResetEmail, setSmtpResetEmail] = useState('');
   const [smtpOtpCode, setSmtpOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

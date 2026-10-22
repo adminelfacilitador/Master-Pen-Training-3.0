@@ -29,15 +29,7 @@
     </script>
 
     <!-- 3. SDK Universal con Cerebro, Voz Oficial de Michael Pen y Sincronización en Tiempo Real -->
-    <script src="https://ais-dev-rq5irbycwkls33x4wuyzaz-506893424321.us-west1.run.app/agent-universal-bridge.js" onerror="this.onerror=null;this.src='/agent-universal-bridge.js';"></script>
-    <script>
-      // Resguardo de resiliencia: si la instancia remota requiere autenticación o está en reposo, cargar SDK puente local
-      if (!window.UniversalAgent) {
-        var s = document.createElement('script');
-        s.src = '/agent-universal-bridge.js';
-        document.head.appendChild(s);
-      }
-    </script>
+    <script src="/agent-universal-bridge.js"></script>
 
     <script type="module" src="/src/main.tsx"></script>
   </body>

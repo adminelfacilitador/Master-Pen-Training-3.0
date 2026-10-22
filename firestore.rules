@@ -8,7 +8,7 @@ service cloud.firestore {
     }
     
     function getUserRole() {
-      return get(/databases/database/documents/users/$(request.auth.uid)).data.role;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
     
     function isAdmin() {
@@ -19,10 +19,16 @@ service cloud.firestore {
       return isAuthenticated() && (getUserRole() == 'student_enrolled' || isAdmin());
     }
 
-    // Users collection: only self or admin can access
+    // Users collection: user can update own profile, but CANNOT self-assign admin roles (C-04)
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow create: if isAuthenticated() && request.auth.uid == userId && (request.resource.data.role == 'student_enrolled' || request.resource.data.role == 'visitor');
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        request.auth.uid == userId && 
+        (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
+      );
+      allow delete: if isAdmin();
     }
 
     // Courses & Academic Blocks: readable by enrolled students & admins
@@ -42,16 +48,28 @@ service cloud.firestore {
       }
     }
 
-    // Exam attempts: students can submit their own attempts; 100% mastery gate
+    // Exam attempts: students can submit their own attempts
     match /exam_attempts/{attemptId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
-    // Certificates: public read by ID/hash for verification, write only by system or admin
+    // Certificates: public verification by ID without exposing sensitive documents
     match /certificates/{certificateId} {
       allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Academic state & progress records
+    match /academic_state/{stateId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Course slides backup
+    match /course_slides/{slideId} {
+      allow read: if isStudentEnrolled();
       allow write: if isAdmin();
     }
 

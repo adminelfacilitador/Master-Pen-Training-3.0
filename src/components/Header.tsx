@@ -361,57 +361,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="text-[9px] text-[#c5a059]">Acceso</span>
                 </button>
 
-                <div className="space-y-1 pt-1">
-                  <span className="text-[9px] text-zinc-500 uppercase font-semibold px-2">
-                    Conmutar Rol (Demostración):
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                    <button
-                      onClick={() => {
-                        cloudState.switchUserByRole('admin_principal');
-                        setIsMenuOpen(false);
-                      }}
-                      className="p-2 rounded-lg bg-black/60 hover:bg-[#d4af37]/20 border border-zinc-800 text-left text-zinc-300 hover:text-white transition"
-                    >
-                      <span className="font-bold text-[#f5e2a3] block">Admin Principal</span>
-                      <span className="text-[9px] text-zinc-500">Michael Pen</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        cloudState.switchUserByRole('admin_vip_tester');
-                        setIsMenuOpen(false);
-                      }}
-                      className="p-2 rounded-lg bg-black/60 hover:bg-emerald-950/40 border border-zinc-800 text-left text-zinc-300 hover:text-emerald-300 transition"
-                    >
-                      <span className="font-bold text-emerald-400 block">VIP Tester</span>
-                      <span className="text-[9px] text-zinc-500">Exento de Pagos</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        cloudState.switchUserByRole('student_enrolled');
-                        setIsMenuOpen(false);
-                      }}
-                      className="p-2 rounded-lg bg-black/60 hover:bg-blue-950/40 border border-zinc-800 text-left text-zinc-300 hover:text-blue-300 transition"
-                    >
-                      <span className="font-bold text-blue-400 block">Alumno Activo</span>
-                      <span className="text-[9px] text-zinc-500">Carlos Mendoza</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        cloudState.switchUserByRole('visitor');
-                        setIsMenuOpen(false);
-                      }}
-                      className="p-2 rounded-lg bg-black/60 hover:bg-amber-950/40 border border-zinc-800 text-left text-zinc-300 hover:text-amber-300 transition"
-                    >
-                      <span className="font-bold text-amber-500 block">Visitante</span>
-                      <span className="text-[9px] text-zinc-500">Sin Matrícula</span>
-                    </button>
-                  </div>
-                </div>
-
                 {/* Session verification info */}
                 <div className="pt-2 text-[10px] text-zinc-500 flex items-center justify-between border-t border-zinc-800">
                   <span className="flex items-center space-x-1">

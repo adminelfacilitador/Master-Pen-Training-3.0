@@ -1,0 +1,133 @@
+Informe de auditoría técnica: Master Pen Training 3.0
+Preparado por Claude (Anthropic) · 19 de octubre de 2026 · Repositorio: adminelfacilitador/Master-Pen-Training-3.0 (rama main)
+1. Resumen ejecutivo
+Se realizó una revisión estática del código de Master Pen Training 3.0, la academia virtual del ecosistema Master Pen Studio Creations, a partir del ZIP de la rama main descargado el 19 de octubre de 2026. Se identificaron 19 hallazgos: 6 críticos, 4 altos, 6 medios y 3 bajos.
+Conclusión. La aplicación sirve como prototipo y demostración visual, pero su control de acceso, sus roles, el examen y la emisión de certificados no ofrecen protección real. No debería usarse con alumnos reales ni con datos personales (cédula o pasaporte) hasta resolver los hallazgos críticos.
+Los tres problemas más graves son:
+• El inicio de sesión es simulado: cualquier visitante puede obtener rol de administrador.
+• El servidor expone, sin autenticación, la configuración SMTP, permite sobrescribir datos y permite gastar la cuota de Gemini sin límite.
+• Las reglas de Firestore no corresponden al código y permiten que un usuario se asigne a sí mismo el rol de administrador.
+2. Alcance y metodología
+Qué se revisó: configuración (package.json, vite.config.ts, tsconfig.json, .env.example, .gitignore, metadata.json), index.html, server.ts, firestore.rules, los servicios de src/services, y los componentes AuthModal, Header, App, VisitorPaywall, ExamEngine, MichaelPenAgentModal y MichaelPenFloatingWidget. También se revisaron partes de CurriculumViewer y AdminCMS, los tipos y datos de src/types y src/data, public/agent-universal-bridge.js y MICHAEL_PEN_AGENT_CORE.md. Además se hicieron búsquedas por patrones: credenciales, claves, almacenamiento local, HTML sin sanitizar, umbrales de aprobación y textos de prueba.
+Limitaciones:
+• No se ejecutó ni se compiló la aplicación (no hay dependencias instaladas en el entorno de revisión).
+• No hubo acceso a Firebase, a Google Cloud ni a las reglas realmente desplegadas.
+• AdminCMS.tsx (más de 3.000 líneas) y CurriculumViewer.tsx no se leyeron completos.
+• No se auditaron vulnerabilidades de las dependencias.
+• No se pudo verificar que los modelos de Gemini citados en el código existan.
+Escala de severidad: Crítico (explotable hoy por cualquier visitante, con impacto grave), Alto, Medio y Bajo.
+3. Hallazgos críticos
+C-01 · Autenticación y roles simulados en el navegador
+• Ubicación: src/components/AuthModal.tsx, src/services/cloudState.ts, src/components/Header.tsx, src/App.tsx, src/components/VisitorPaywall.tsx.
+• Descripción: la contraseña nunca se verifica: solo se comprueba que el correo exista y tenga rol de administrador. El segundo factor solo valida que el código tenga 6 dígitos, y el código «simulado» se muestra en pantalla con un botón para copiarlo. El acceso con Google consiste en escribir un correo: si coincide con un usuario existente, se inicia sesión como esa persona. Hay botones visibles para cualquier visitante que cambian de rol sin credenciales («Conmutar Rol (Demostración)», «Acceso Rápido (Michael Pen)», «Auditar como VIP Tester»). El formulario trae precargados el correo del administrador y una contraseña, ahora públicos en el repositorio. No se usa Firebase Authentication en ninguna parte.
+• Impacto: cualquier persona puede ser administrador, suplantar a un alumno o saltarse el paywall.
+• Recomendación: implementar Firebase Authentication (proveedor Google), asignar roles mediante custom claims o un documento validado por reglas, retirar los controles de demostración (o dejarlos solo en desarrollo) y cambiar la contraseña precargada si se usa en otros servicios.
+C-02 · Endpoints del servidor sin autenticación y con CORS abierto
+• Ubicación: server.ts.
+• Descripción: ninguna ruta verifica la identidad. GET /api/smtp/config devuelve la configuración SMTP completa, incluida la contraseña o clave que se haya guardado y el último código de restablecimiento. POST /api/smtp/save-firebase, /api/ecosystem/save-branding, /api/courses/sync-catalog y /api/academic/save-state permiten sobrescribir datos. GET /api/academic/state devuelve el estado académico en caché, que incluye certificados con documento de identidad. /api/chat, /api/agent/chat y /api/tts/speak consumen la cuota de Gemini sin límite. CORS permite cualquier origen y el cuerpo de las peticiones admite hasta 50 MB.
+• Impacto: toma de cuentas (por el código de restablecimiento expuesto), manipulación de contenidos, filtración de datos personales y agotamiento de cuotas o facturación.
+• Recomendación: verificar el token de Firebase en el servidor para toda ruta de escritura o sensible, limitar CORS a los orígenes propios, añadir límites de uso por usuario y por IP, reducir el tamaño máximo de las peticiones, no devolver nunca secretos y guardar las credenciales SMTP en un gestor de secretos, no en Firestore.
+C-03 · Subida de imágenes vulnerable
+• Ubicación: server.ts (saveBase64Image, /api/ecosystem/upload-image, /api/ecosystem/save-branding).
+• Descripción: el parámetro category (y las claves del objeto branding) se usan sin sanitizar como prefijo del nombre de archivo, lo que permite escribir fuera de la carpeta uploads (path traversal). La extensión se toma del tipo MIME enviado por el cliente: un data:image/html;base64,... genera un archivo .html servido desde el mismo dominio. Además se acepta SVG.
+• Impacto: escritura de archivos no previstos y alojamiento de HTML o scripts propios en el dominio de la academia (XSS almacenado).
+• Recomendación: exigir autenticación de administrador, usar una lista cerrada de categorías, derivar la extensión de una lista permitida (png, jpg, webp), validar el contenido real del archivo, rechazar o sanitizar SVG y servir las subidas con cabeceras seguras. Para producción, preferir Firebase Storage con reglas.
+C-04 · Reglas de Firestore incoherentes e inseguras
+• Ubicación: firestore.rules frente al código de src/services/cloudState.ts.
+• Descripción:
+    ◦ La función getUserRole() usa la ruta /databases/database/documents/... en lugar de /databases/$(database)/documents/..., por lo que no resuelve el rol.
+    ◦ En users, cada usuario puede escribir su propio documento, incluido el campo role: puede asignarse administrador.
+    ◦ exam_attempts permite crear intentos sin validar la nota.
+    ◦ certificates es de lectura pública y los certificados contienen documento de identidad.
+    ◦ El código escribe en academic_state y course_slides, que no tienen regla (quedan denegadas), mientras que las reglas definen exam_attempts, question_banks, blocks y storage_catalog, que el código no usa.
+    ◦ Todo depende de request.auth, pero la aplicación no usa Firebase Authentication. Con estas reglas casi nada funcionaría, lo que sugiere que en producción hay reglas abiertas (por ejemplo, modo de prueba). server.ts además oculta los errores «Missing or insufficient permissions», lo que tapa el problema.
+• Nota: las claves apiKey de Firebase presentes en el código son identificadores públicos por diseño; precisamente por eso las reglas son la única protección real de los datos.
+• Recomendación: rediseñar las reglas a partir de las colecciones realmente usadas, impedir que el usuario modifique su propio role, restringir la lectura de certificados a una verificación por identificador sin datos personales, e implementar el acceso con Firebase Authentication. Revisar de inmediato las reglas desplegadas en la consola de Firebase.
+C-05 · Clave de Gemini incorporada al código del navegador
+• Ubicación: vite.config.ts (bloque define) y src/components/MichaelPenAgentModal.tsx.
+• Descripción: vite.config.ts inyecta GEMINI_API_KEY en el paquete que se envía al navegador, y el modal del agente la usa desde el cliente para llamar a Gemini directamente.
+• Impacto: si se compila con la variable presente, la clave queda visible para cualquier visitante.
+• Recomendación: eliminar el bloque define y la llamada desde el cliente; usar la clave solo en el servidor. Si el sitio estuvo desplegado con la clave incorporada, rotarla.
+C-06 · Script cargado desde una URL de desarrollo de AI Studio
+• Ubicación: index.html.
+• Descripción: la página carga agent-universal-bridge.js desde una dirección ais-dev-...run.app, con respaldo local. Un script de otro origen se ejecuta con acceso total a la página, y una instancia de desarrollo puede cambiar, pedir inicio de sesión o apagarse. El mismo archivo ya existe en /public.
+• Impacto: riesgo de inyección de código ajeno y fallos intermitentes.
+• Recomendación: cargar solo la copia local y retirar la dependencia de la instancia remota.
+4. Hallazgos altos
+A-01 · HTML sin sanitizar
+• Ubicación: src/components/CurriculumViewer.tsx.
+• Descripción: se renderiza htmlContent con dangerouslySetInnerHTML; ese contenido se edita desde el panel de administración, al que hoy accede cualquiera (C-01).
+• Recomendación: sanitizar con DOMPurify o limitar el contenido a texto y componentes propios.
+A-02 · Datos personales expuestos
+• Ubicación: UserProfile y CertificateData (src/types), cloudState.ts, server.ts, firestore.rules.
+• Descripción: se guardan tipo y número de documento, ciudad y nombre dentro del estado académico y los certificados, que se sincronizan con Firestore y con una caché del servidor, y se exponen por rutas y reglas de lectura abiertas (C-02 y C-04).
+• Recomendación: recolectar solo los datos imprescindibles para el certificado, almacenarlos separados del estado público, y publicar para verificación únicamente un identificador del certificado con nombre y curso.
+A-03 · Examen manipulable y sin registro de intentos
+• Ubicación: ExamEngine.tsx, antiCheatEngine.ts, src/data, cloudState.ts.
+• Descripción: las respuestas correctas viajan en el código del navegador y la calificación se calcula en el cliente, aunque las reglas indican que el banco de preguntas es solo para administradores. Los intentos de examen no se guardan en ninguna colección, y parte del progreso depende de localStorage.
+• Recomendación: mover el banco de preguntas y la calificación al servidor, registrar cada intento, y emitir certificados únicamente desde el servidor.
+A-04 · Errores silenciados y mensajes de éxito falsos
+• Ubicación: server.ts, cloudState.ts.
+• Descripción: se filtran mensajes de error de permisos en process.stderr; numerosos bloques catch están vacíos; saveSmtpSettingsToFirebase devuelve éxito incluso cuando falla; varios endpoints informan «guardado permanentemente» aunque solo escribieron un JSON local, que se pierde al reiniciar en Cloud Run; /api/course/save-firebase solo registra un mensaje en consola.
+• Recomendación: registrar y devolver los errores reales, retirar el filtro de stderr y confirmar el éxito solo cuando la escritura ocurrió.
+5. Hallazgos medios y bajos
+M-01 · Criterio de aprobación contradictorio
+Coexisten tres reglas: 100% (tipos, AdminCMS, etiquetas como «Aprobado 100%» y la habilidad del agente), 70% (textos de CurriculumViewer y el certificado «>= 70%») y 4 de 5 aciertos (ExamEngine, antiCheatEngine, perfil). Además, la respuesta de respaldo del servidor habla de «50 puntos con al menos 4 aciertos por bloque», lo cual es imposible, y el agente afirma que el grado A exige 50 de 50. Recomendación: definir una única regla y centralizarla en una constante.
+M-02 · Datos de prueba que pueden llegar a certificados reales
+Si faltan datos, CertificateModal.tsx y cloudState.ts rellenan con valores de ejemplo: un nombre de alumno ficticio, un número de documento de muestra, una ciudad predeterminada y el identificador usr_demo. Recomendación: no emitir certificados con campos faltantes.
+M-03 · Funciones simuladas presentadas como reales
+• La prueba de conexión SMTP (/api/smtp/test-connection) no se conecta a nada: devuelve latencia aleatoria y un «TLS 1.3 establecido» ficticio.
+• El restablecimiento de contraseña genera el código en el navegador, lo muestra en pantalla y no envía correo. La contraseña nueva no se guarda: solo se almacena un «hash» aleatorio.
+• Los «tokens firmados de 15 minutos» son un contador local sin respaldo en el servidor.
+• SecurityShield (bloqueo de F12, Ctrl+S y copiar) no protege nada y solo entorpece el uso.
+Recomendación: usar el restablecimiento de Firebase Authentication, o un servicio real de correo, y retirar o etiquetar lo simulado.
+M-04 · Filtro de palabras clave del agente
+Bloquea términos comunes en una academia de escritura («lenguaje», «servidor», «token»), por lo que consultas legítimas reciben «No estoy autorizado…». Las listas difieren entre server.ts, el widget, el modal y el puente, y se evaden con facilidad. Recomendación: no depender del filtro; no incluir secretos en el contexto del modelo y limitar lo que el agente puede hacer.
+M-05 · Síntesis de voz
+El servidor etiqueta el audio como audio/wav, pero la API de Gemini TTS suele entregar audio PCM sin cabecera WAV, por lo que podría no reproducirse (a verificar). La caché usa solo los primeros 120 caracteres del texto, de modo que dos textos largos con el mismo comienzo devuelven el audio equivocado.
+M-06 · Nombres de modelo y parámetros no verificados
+gemini-3.8-flash y gemini-3.8-flash-lite-tts aparecen en tres lugares del código, y se usa un campo speechMetadata que no se pudo confirmar en el SDK. Recomendación: confirmar en AI Studio los nombres vigentes y centralizarlos en una variable de configuración.
+B-01 · Configuración heredada de la plantilla
+package.json se llama react-example, autoprefixer sobra con Tailwind v4 y vite.config.ts conserva comentarios de la plantilla de AI Studio.
+B-02 · Peso del repositorio
+Hay 19 copias redundantes de imágenes (mismo contenido) repartidas entre public/uploads y src/assets/images (unos 16 MB en total), y los JSON de caché (branding_cache.json, courses_catalog_cache.json) están versionados aunque el servidor los reescribe.
+B-03 · Detalles de código
+server.ts exporta funciones desde el archivo que arranca el servidor, y quedan marcadores de ejemplo (por ejemplo, un correo admin@tudominio.onmicrosoft.com en AdminCMS).
+6. Plan de remediación propuesto
+Fase 0 · Contención (mismo día)
+• Devolver el repositorio a privado.
+• Cambiar la contraseña precargada si se usa en otros servicios, y rotar GEMINI_API_KEY si el sitio estuvo desplegado con la clave incorporada.
+• Retirar los botones de demostración (C-01) y el bloque define de vite.config.ts (C-05).
+• Quitar el script remoto de index.html (C-06).
+• Cerrar GET /api/smtp/config y GET /api/academic/state.
+• Revisar en la consola de Firebase qué reglas están desplegadas.
+Fase 1 · Identidad y reglas
+• Activar Firebase Authentication con Google.
+• Definir roles con custom claims.
+• Reescribir firestore.rules según las colecciones reales.
+• Retirar la lógica de login simulado.
+Fase 2 · Servidor
+• Middleware que verifique el token de Firebase.
+• Rutas de administración solo para administradores.
+• CORS restringido, límites de uso y de tamaño.
+• Subida de imágenes segura.
+• Secretos fuera de Firestore.
+Fase 3 · Coherencia académica
+• Fijar una única regla de aprobación.
+• Mover banco de preguntas y calificación al servidor.
+• Registrar intentos.
+• Emitir certificados solo desde el servidor y sin datos de ejemplo.
+• Reducir los datos personales recolectados.
+Fase 4 · Calidad y limpieza
+• Verificar modelos de Gemini y la reproducción de audio.
+• Reemplazar el filtro de palabras clave del agente.
+• Retirar funciones simuladas o etiquetarlas.
+• Quitar duplicados, cachés versionadas y restos de plantilla.
+• Añadir pruebas básicas y un chequeo de compilación en cada cambio.
+7. Decisiones que corresponden al propietario
+• Cuál será la regla única de aprobación (100%, 4 de 5 o 70%).
+• Qué datos personales son realmente necesarios para el certificado.
+• Si el restablecimiento de contraseña se resolverá con Firebase Authentication o con un servicio de correo propio.
+• Si el sitio se publicará con usuarios reales, y cuándo.
+8. Notas finales
+Los hallazgos provienen de la lectura del código y no de pruebas en un entorno en ejecución; antes de aplicar cambios conviene confirmar el estado real de las reglas de Firestore, de las variables de entorno y del despliegue. Este informe no reproduce contraseñas ni claves presentes en el código; si alguna estuvo expuesta públicamente, debe tratarse como comprometida.

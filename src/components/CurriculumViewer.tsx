@@ -392,14 +392,21 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
         )}
       </div>
 
-      {/* Dynamic Safe Injections (MÓDULO 4: Autoadministrable desde Cloud) */}
-      {cloudState.getSafeInjections().filter(inj => inj.isActive && inj.placement === 'curriculum_banner').map(inj => (
-        <div 
-          key={inj.id} 
-          className="rounded-2xl overflow-hidden animate-in fade-in"
-          dangerouslySetInnerHTML={{ __html: inj.htmlContent }}
-        />
-      ))}
+      {/* Dynamic Safe Injections (MÓDULO 4: Autoadministrable con sanitización de seguridad) */}
+      {cloudState.getSafeInjections().filter(inj => inj.isActive && inj.placement === 'curriculum_banner').map(inj => {
+        const sanitizedHtml = (inj.htmlContent || '')
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/on\w+="[^"]*"/gi, '')
+          .replace(/on\w+='[^']*'/gi, '')
+          .replace(/javascript:[^"']*/gi, '');
+        return (
+          <div 
+            key={inj.id} 
+            className="rounded-2xl overflow-hidden animate-in fade-in"
+            dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+          />
+        );
+      })}
 
       {selectedCourse === 'escritura_creativa' ? (
         <EscrituraCreativaViewer

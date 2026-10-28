@@ -18,35 +18,7 @@
   }
   window.__MICHAEL_PEN_BRIDGE_LOADED__ = true;
 
-  // Declaración inmediata del objeto global UniversalAgent
-  window.UniversalAgent = window.UniversalAgent || {
-    open: function() { if (window.__mpToggle) window.__mpToggle(true); },
-    close: function() { if (window.__mpToggle) window.__mpToggle(false); },
-    toggle: function() { if (window.__mpToggle) window.__mpToggle(); },
-    openControlPanel: function() { if (window.__mpOpenPanel) window.__mpOpenPanel(); },
-    closeControlPanel: function() { if (window.__mpClosePanel) window.__mpClosePanel(); },
-    speak: function(t) { SpeechEngine.speak(t); },
-    stop: function() { SpeechEngine.stop(); },
-    ecosystem: ecosystemRaw,
-    role: agentRole,
-    isReady: true
-  };
-  window.MichaelPenAgent = window.UniversalAgent;
-// Declaración inmediata del objeto global UniversalAgent
-  window.UniversalAgent = window.UniversalAgent || {
-    open: function() { if (window.__mpToggle) window.__mpToggle(true); },
-    close: function() { if (window.__mpToggle) window.__mpToggle(false); },
-    toggle: function() { if (window.__mpToggle) window.__mpToggle(); },
-    openControlPanel: function() { if (window.__mpOpenPanel) window.__mpOpenPanel(); },
-    closeControlPanel: function() { if (window.__mpClosePanel) window.__mpClosePanel(); },
-    speak: function(t) { SpeechEngine.speak(t); },
-    stop: function() { SpeechEngine.stop(); },
-    ecosystem: ecosystemRaw,
-    role: agentRole,
-    isReady: true
-  };
-  window.MichaelPenAgent = window.UniversalAgent;
-// 1. Detección del Ecosistema Destino
+  // 1. Detección del Ecosistema Destino
   const ecosystemRaw = window.MASTER_PEN_ECOSYSTEM || 'Master Pen Training';
   const ecosystemNormalized = String(ecosystemRaw).trim().toLowerCase();
 
@@ -80,6 +52,21 @@
     agentRole = 'Consejero de ' + ecosystemRaw;
     welcomeGreeting = 'Saludos cordiales. Soy Michael Pen, consejero institucional para ' + ecosystemRaw + '. ¿En qué puedo orientarle hoy?';
   }
+
+  // Objeto global de enlace inmediato disponible para botones del DOM
+  window.UniversalAgent = {
+    open: function() { if (window.__mpToggle) window.__mpToggle(true); },
+    close: function() { if (window.__mpToggle) window.__mpToggle(false); },
+    toggle: function() { if (window.__mpToggle) window.__mpToggle(); },
+    openControlPanel: function() { if (window.__mpOpenPanel) window.__mpOpenPanel(); },
+    closeControlPanel: function() { if (window.__mpClosePanel) window.__mpClosePanel(); },
+    speak: function(t) { if (typeof SpeechEngine !== 'undefined' && SpeechEngine.speak) SpeechEngine.speak(t); },
+    stop: function() { if (typeof SpeechEngine !== 'undefined' && SpeechEngine.stop) SpeechEngine.stop(); },
+    get ecosystem() { return ecosystemRaw; },
+    get role() { return agentRole; },
+    isReady: true
+  };
+  window.MichaelPenAgent = window.UniversalAgent;
 
   // 3. Blindaje de Seguridad y Palabras Sensibles
   const SENSITIVE_KEYWORDS = [

@@ -14,7 +14,6 @@ import {
   ChevronDown,
   Smartphone,
   LogOut,
-  Bot,
   Compass,
   User
 } from 'lucide-react';
@@ -28,7 +27,6 @@ interface HeaderProps {
   setActiveTab: (tab: 'ecosystem' | 'curriculum' | 'exam' | 'certificate' | 'cms') => void;
   onOpenAuthModal: () => void;
   onOpenImageModal: () => void;
-  onOpenAgentModal?: () => void;
   onOpenUserProfile?: () => void;
 }
 
@@ -38,7 +36,6 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onOpenAuthModal,
   onOpenImageModal,
-  onOpenAgentModal,
   onOpenUserProfile
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -86,21 +83,21 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 bg-[#0d0e12]/95 backdrop-blur-md border-b border-[#c5a059]/30 shadow-2xl py-3">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         
-        {/* EXCLUSIVO: Logotipo del ecosistema (exactamente 1.5 pulgadas de diámetro) y Título Grande */}
+        {/* EXCLUSIVO: Logotipo del ecosistema ampliado para exhibir sus tres aros concéntricos y Título Grande */}
         <div className="flex items-center space-x-5 md:space-x-7">
           
-          {/* Logotipo de 1.5 pulgadas (1.5in = 144px CSS standard) */}
+          {/* Logotipo de tamaño expandido para mostrar los tres aros completos sin recorte */}
           <div 
             onClick={() => setActiveTab('curriculum')}
             className="cursor-pointer shrink-0 transition-transform hover:scale-105"
-            style={{ width: '1.5in', height: '1.5in' }}
-            title="Logotipo Oficial Master Pen Training (1.5 pulgadas de diámetro)"
+            style={{ width: '1.85in', height: '1.85in', minWidth: '135px', minHeight: '135px' }}
+            title="Logotipo Oficial Master Pen Training (Tres Aros Concéntricos Visibles)"
           >
-            <div className="w-full h-full rounded-full overflow-hidden border-2 border-[#d4af37] shadow-[0_0_25px_rgba(212,175,55,0.45)] bg-black flex items-center justify-center p-0.5">
+            <div className="w-full h-full rounded-full overflow-hidden border-2 border-[#d4af37] shadow-[0_0_30px_rgba(212,175,55,0.55)] bg-black flex items-center justify-center p-1.5">
               <img 
                 src={brandingImages.logo} 
-                alt="Logotipo Master Pen Training" 
-                className="w-full h-full object-cover rounded-full"
+                alt="Logotipo Master Pen Training (Tres Aros)" 
+                className="w-full h-full object-contain rounded-full"
               />
             </div>
           </div>
@@ -117,28 +114,8 @@ export const Header: React.FC<HeaderProps> = ({
 
         </div>
 
-        {/* Acciones de Cabecera: Botón Perfil y Menú Desplegable */}
+        {/* Acciones de Cabecera: Menú Desplegable Oficial */}
         <div className="flex items-center space-x-2.5">
-
-          {/* Quick Profile Button */}
-          {currentUser && (
-            <button
-              onClick={() => onOpenUserProfile?.()}
-              className="flex items-center space-x-2 bg-gradient-to-r from-[#14161f] to-[#1c1e28] hover:from-[#1c1e28] hover:to-[#262836] border border-[#c5a059]/60 hover:border-[#d4af37] px-3 py-2.5 rounded-xl shadow-[0_0_15px_rgba(212,175,55,0.2)] transition-all text-white focus:outline-none cursor-pointer"
-              title="Ver y Editar Mi Perfil Institucional & Calificaciones"
-            >
-              <div className="w-6 h-6 rounded-full overflow-hidden border border-[#d4af37] shrink-0">
-                <img 
-                  src={currentUser.photoUrl || brandingImages.portrait} 
-                  alt={currentUser.displayName} 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span className="hidden sm:inline text-xs font-semibold text-[#f5e2a3] max-w-[110px] truncate">
-                {currentUser.displayName.split(' ')[0]}
-              </span>
-            </button>
-          )}
 
           {/* EXCLUSIVO: Menú Desplegable a la derecha con todos los botones */}
           <div className="relative" ref={menuRef}>
@@ -300,24 +277,6 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>Consola CMS Administrador</span>
                   </button>
                 )}
-
-                {/* Agente Michael Pen (Voz & IA) */}
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onOpenAgentModal?.();
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-medium text-[#f5e2a3] bg-gradient-to-r from-[#d4af37]/20 via-[#c5a059]/10 to-transparent hover:from-[#d4af37]/30 border border-[#d4af37]/50 shadow-[0_0_15px_rgba(212,175,55,0.2)] transition mt-1.5"
-                >
-                  <Bot className="w-4 h-4 text-[#d4af37] animate-pulse" />
-                  <div className="text-left">
-                    <p className="font-bold flex items-center space-x-1.5">
-                      <span>Agente Mentor Michael Pen</span>
-                      <span className="text-[9px] px-1.5 py-0.5 bg-[#d4af37] text-black font-extrabold rounded">IA + Voz</span>
-                    </p>
-                    <p className="text-[10px] text-zinc-400">Orientación en ventas, oratoria y tratados</p>
-                  </div>
-                </button>
               </div>
 
               {/* SECTION 2: Carga de Imágenes desde PC y Celular */}

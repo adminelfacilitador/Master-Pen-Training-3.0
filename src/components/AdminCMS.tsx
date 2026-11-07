@@ -46,7 +46,18 @@ import {
   Volume2,
   VolumeX,
   Code,
-  CloudLightning
+  CloudLightning,
+  History,
+  UserCheck,
+  Search,
+  Filter,
+  Download,
+  FileSpreadsheet,
+  Bot,
+  User,
+  Activity,
+  Clock,
+  FileCheck
 } from 'lucide-react';
 import { 
   AcademicBlock, 
@@ -57,7 +68,10 @@ import {
   SmtpSettings,
   SmtpConnectionTestResult,
   SafeInjectionItem,
-  CustomDynamicPage
+  CustomDynamicPage,
+  AuditLogEntry,
+  AuditActionType,
+  AuditSeverity
 } from '../types';
 import { CourseBlockData, CourseSlide, QUIERO_SER_ESCRITOR_BLOCKS } from '../data/quieroSerEscritorCourse';
 import { INITIAL_BLOCKS } from '../data/initialData';
@@ -66,19 +80,43 @@ import { cloudState, BrandingImages, MasterSyncResult } from '../services/cloudS
 import { BRANDING } from '../assets/branding';
 import { parseMediaUrl } from '../services/mediaParser';
 import { compressImageToDataUrl } from '../utils/imageCompressor';
+import { AI_CHRONICLES, getStoredAIAffiliates, saveStoredAIAffiliate } from '../data/aiChronicles';
 
 export const AdminCMS: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'udemy_builder' | 'slides_editor' | 'image_manager' | 'certificate' | 'exams' | 'security' | 'injections' | 'universal_sdk'>('slides_editor');
-  const [selectedSdkEcosystem, setSelectedSdkEcosystem] = useState<string>('Master Pen Training');
-  const [copiedSdkCode, setCopiedSdkCode] = useState<boolean>(false);
+  const [activeSubTab, setActiveSubTab] = useState<'udemy_builder' | 'slides_editor' | 'image_manager' | 'certificate' | 'exams' | 'security' | 'injections' | 'ai_affiliates' | 'audit_logs'>('slides_editor');
   
   // Curriculum state
   const [blocks, setBlocks] = useState<AcademicBlock[]>(cloudState.getBlocks());
   const [introResource, setIntroResource] = useState<MediaResource>(cloudState.getIntroResource());
   const [certTemplate, setCertTemplate] = useState<CertificateTemplate>(cloudState.getCertificateTemplate());
   const [brandingImages, setBrandingImages] = useState<BrandingImages>(cloudState.getBrandingImages());
-  const [storageAssets, setStorageAssets] = useState<CloudStorageAsset[]>(cloudState.getStorageAssets());
   const [saveFeedback, setSaveFeedback] = useState<string>('');
+
+  // AI Affiliate Links & Monetization State (11 Herramientas para masterpentraining.com)
+  const [affiliateConfigs, setAffiliateConfigs] = useState<Record<string, { affiliateUrl: string; affiliateButtonText: string; enabled: boolean }>>(() => {
+    const stored = getStoredAIAffiliates();
+    const map: Record<string, { affiliateUrl: string; affiliateButtonText: string; enabled: boolean }> = {};
+    AI_CHRONICLES.forEach(c => {
+      map[c.id] = {
+        affiliateUrl: stored[c.id]?.affiliateUrl ?? (c.affiliateUrl || ''),
+        affiliateButtonText: stored[c.id]?.affiliateButtonText ?? (c.affiliateButtonText || `Probar ${c.shortName} (Afiliado)`),
+        enabled: stored[c.id]?.enabled ?? true
+      };
+    });
+    return map;
+  });
+  const [affiliateSaveStatus, setAffiliateSaveStatus] = useState<string>('');
+
+  // MÓDULO 5: Auditoría Académica y Logs de Usuarios
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => cloudState.getAuditLogs());
+  const [auditActionFilter, setAuditActionFilter] = useState<string>('ALL');
+  const [auditSeverityFilter, setAuditSeverityFilter] = useState<string>('ALL');
+  const [auditSearchQuery, setAuditSearchQuery] = useState<string>('');
+  const [auditFeedback, setAuditFeedback] = useState<string>('');
+
+  // Selector Exclusivo de Agente e Identidad (Michael Pen)
+  const [agentIdentity, setAgentIdentity] = useState<{ name: string; role: string }>(() => cloudState.getAgentIdentity());
+  const [agentFeedback, setAgentFeedback] = useState<string>('');
 
   // MÓDULO 4: Inyecciones Seguras y Páginas Dinámicas
   const [safeInjections, setSafeInjections] = useState<SafeInjectionItem[]>(() => cloudState.getSafeInjections());
@@ -100,6 +138,8 @@ export const AdminCMS: React.FC = () => {
   useEffect(() => {
     const unsub = cloudState.subscribe(() => {
       setCourseBlocks(cloudState.getCourseBlocks());
+      setAuditLogs(cloudState.getAuditLogs());
+      setAgentIdentity(cloudState.getAgentIdentity());
     });
     return () => unsub();
   }, []);
@@ -944,16 +984,27 @@ service cloud.firestore {
         </button>
 
         <button
-          type="button"
-          onClick={() => setActiveSubTab('universal_sdk')}
+          onClick={() => setActiveSubTab('ai_affiliates')}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center space-x-2 transition cursor-pointer ${
-            activeSubTab === 'universal_sdk'
+            activeSubTab === 'ai_affiliates'
               ? 'bg-[#d4af37] text-black shadow-[0_0_12px_rgba(212,175,55,0.4)]'
               : 'bg-zinc-900 text-zinc-400 hover:text-white'
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>SDK Universal Michael Pen (Embed)</span>
+          <span>Afiliados IA (11 Herramientas & Monetización)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('audit_logs')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center space-x-2 transition cursor-pointer ${
+            activeSubTab === 'audit_logs'
+              ? 'bg-[#d4af37] text-black shadow-[0_0_12px_rgba(212,175,55,0.4)]'
+              : 'bg-zinc-900 text-zinc-400 hover:text-white'
+          }`}
+        >
+          <History className="w-4 h-4" />
+          <span>Auditoría & Logs Académicos</span>
         </button>
       </div>
 
@@ -3213,167 +3264,615 @@ service cloud.firestore {
       )}
 
       {/* ========================================================================= */}
-      {/* SUBTAB 7: SDK UNIVERSAL DE MICHAEL PEN (EMBED & BRIDGE ECOSISTÉMICO) */}
+      {/* SUBTAB: MONETIZACIÓN DE AFILIADOS IA (11 HERRAMIENTAS - masterpentraining.com) */}
       {/* ========================================================================= */}
-      {activeSubTab === 'universal_sdk' && (
+      {activeSubTab === 'ai_affiliates' && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-[#141520] via-[#0f1017] to-[#161824] border-2 border-[#d4af37]/60 shadow-xl space-y-4">
-            <div className="flex items-center space-x-3.5">
-              <div className="p-3 rounded-xl bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#d4af37] shadow-[0_0_15px_rgba(212,175,55,0.3)]">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-[#c5a059]">
-                  Integración Universal Multi-Plataforma
-                </span>
-                <h3 className="text-xl font-bold font-serif-gold text-white">
-                  SDK Universal de Michael Pen (Bridge Oficial)
+          
+          {/* Header Banner - Estrategia de Monetización */}
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-[#12141c] via-[#0f1118] to-[#141622] border-2 border-[#c5a059]/40 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-[#d4af37]/5 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center space-x-2">
+                  <span className="px-3 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider uppercase bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#f5e2a3]">
+                    Ecosistema Comercial & Afiliados
+                  </span>
+                  <span className="text-xs text-zinc-400 font-mono">
+                    masterpentraining.com
+                  </span>
+                </div>
+                <h3 className="text-xl md:text-2xl font-bold font-serif-gold text-white">
+                  Monetización de las 11 Inteligencias Artificiales
                 </h3>
-                <p className="text-xs text-zinc-400">
-                  Código de inserción oficial para embeber a Michael Pen en cualquier portal, tienda o aplicación externa del Ecosistema Master Pen.
+                <p className="text-xs md:text-sm text-zinc-300 max-w-2xl leading-relaxed">
+                  Configura tus hipervínculos de afiliados y textos de botón para cada una de las 11 IAs consagradas (incluyendo <strong>n8n</strong>, <strong>Microsoft Copilot</strong> y <strong>Grok</strong>). Los botones se reflejan en tiempo real tanto en el Slideshow superior como en las monografías de autor.
                 </p>
               </div>
+
+              {affiliateSaveStatus && (
+                <div className="px-4 py-2 rounded-xl bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 text-xs font-semibold flex items-center space-x-2 animate-in fade-in">
+                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{affiliateSaveStatus}</span>
+                </div>
+              )}
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <div className="p-3.5 rounded-xl bg-black/60 border border-zinc-800 space-y-1">
-                <span className="text-[10px] text-zinc-500 uppercase font-mono">Estado del Puente:</span>
-                <p className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>Operativo y Disponible</span>
+          {/* Grid de las 11 Inteligencias Artificiales */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {AI_CHRONICLES.map((ai) => {
+              const currentCfg = affiliateConfigs[ai.id] || {
+                affiliateUrl: ai.affiliateUrl || ai.officialUrl || '',
+                affiliateButtonText: ai.affiliateButtonText || `Probar ${ai.shortName} (Afiliado)`,
+                enabled: true
+              };
+
+              const handleSaveItem = () => {
+                saveStoredAIAffiliate(ai.id, {
+                  affiliateUrl: currentCfg.affiliateUrl,
+                  affiliateButtonText: currentCfg.affiliateButtonText,
+                  enabled: currentCfg.enabled
+                });
+                setAffiliateSaveStatus(`¡Enlace para ${ai.name} guardado con éxito!`);
+                setTimeout(() => setAffiliateSaveStatus(''), 4000);
+              };
+
+              const handleResetToOfficial = () => {
+                const official = ai.officialUrl || 'https://google.com';
+                const defaultText = `Explorar ${ai.shortName} (Afiliado Master Pen)`;
+                setAffiliateConfigs(prev => ({
+                  ...prev,
+                  [ai.id]: {
+                    ...prev[ai.id],
+                    affiliateUrl: official,
+                    affiliateButtonText: defaultText
+                  }
+                }));
+                saveStoredAIAffiliate(ai.id, {
+                  affiliateUrl: official,
+                  affiliateButtonText: defaultText
+                });
+                setAffiliateSaveStatus(`Restablecido a URL oficial para ${ai.name}`);
+                setTimeout(() => setAffiliateSaveStatus(''), 3000);
+              };
+
+              return (
+                <div 
+                  key={ai.id}
+                  className="p-5 rounded-2xl bg-[#0e1017] border border-zinc-800 hover:border-[#d4af37]/60 transition-all duration-200 shadow-xl space-y-4"
+                >
+                  {/* Header de la IA */}
+                  <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+                    <div className="flex items-center space-x-3">
+                      <div 
+                        className="w-12 h-12 rounded-xl border bg-black flex items-center justify-center p-1 shrink-0 shadow-md"
+                        style={{ borderColor: ai.accentColor }}
+                      >
+                        <img src={ai.logoImage} alt={ai.name} className="w-full h-full object-contain" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-bold text-sm text-white font-serif-gold">
+                            {ai.name}
+                          </h4>
+                          <span 
+                            className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
+                            style={{ backgroundColor: `${ai.accentColor}25`, color: ai.accentColor }}
+                          >
+                            {ai.badge}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 font-mono">
+                          {ai.creator} • Nacimiento {ai.birthYear}
+                        </p>
+                      </div>
+                    </div>
+
+                    <a
+                      href={currentCfg.affiliateUrl || ai.officialUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-lg bg-zinc-900 hover:bg-[#d4af37] text-zinc-400 hover:text-black border border-zinc-700 transition cursor-pointer"
+                      title="Probar enlace actual en nueva pestaña"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+
+                  {/* Inputs de Configuración */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#f5e2a3] mb-1 font-mono">
+                        URL / Hipervínculo de Afiliado (Monetización):
+                      </label>
+                      <input
+                        type="url"
+                        value={currentCfg.affiliateUrl}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAffiliateConfigs(prev => ({
+                            ...prev,
+                            [ai.id]: { ...prev[ai.id], affiliateUrl: val }
+                          }));
+                        }}
+                        placeholder={`https://${ai.id}.com?ref=masterpentraining`}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-zinc-700 focus:border-[#d4af37] text-white text-xs font-mono outline-none transition"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#f5e2a3] mb-1 font-mono">
+                        Texto del Botón de Conversión (Call To Action):
+                      </label>
+                      <input
+                        type="text"
+                        value={currentCfg.affiliateButtonText}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAffiliateConfigs(prev => ({
+                            ...prev,
+                            [ai.id]: { ...prev[ai.id], affiliateButtonText: val }
+                          }));
+                        }}
+                        placeholder={`Explorar ${ai.shortName} (Afiliado Master Pen)`}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-zinc-700 focus:border-[#d4af37] text-white text-xs outline-none transition"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Acciones */}
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={handleResetToOfficial}
+                      className="text-[11px] text-zinc-500 hover:text-zinc-300 underline font-mono cursor-pointer"
+                    >
+                      Restablecer oficial
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveItem}
+                      className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-[#d4af37] hover:bg-[#e5c158] text-black font-bold text-xs tracking-wider transition shadow-md hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] cursor-pointer"
+                    >
+                      <Save className="w-3.5 h-3.5 text-black" />
+                      <span>Guardar Enlace</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUBTAB: REGISTRO Y AUDITORÍA ACADÉMICA (AUDIT LOGS & SELECTOR DE AGENTE) */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'audit_logs' && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          
+          {/* SECCIÓN 1: SELECTOR EXCLUSIVO DE AGENTE (SOLO ADMINISTRADOR - CEREBRO BLINDADO) */}
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-[#141624] via-[#0f111a] to-[#161324] border-2 border-[#d4af37]/50 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#d4af37]/5 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex items-center space-x-2">
+                  <span className="px-3 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider uppercase bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#f5e2a3] flex items-center space-x-1.5">
+                    <Bot className="w-3.5 h-3.5 text-[#d4af37]" />
+                    <span>Selector de Agente • Exclusivo Administrador</span>
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-mono bg-emerald-950/70 text-emerald-400 border border-emerald-800/40">
+                    Cerebro Blindado & Confidencial
+                  </span>
+                </div>
+                <h3 className="text-xl md:text-2xl font-bold font-serif-gold text-white">
+                  Identidad Activa & Seudónimos de Michael Pen
+                </h3>
+                <p className="text-xs md:text-sm text-zinc-300 leading-relaxed">
+                  Conforme a tus directivas de seguridad, la fuente técnica y origen del cerebro central permanecen <strong>estrictamente invisibles</strong> para los alumnos y visitantes. El selector de rol y seudónimo es gestionado exclusivamente desde esta consola de control.
                 </p>
-                <p className="text-[10px] text-zinc-500 font-mono">/agent-universal-bridge.js</p>
+                <div className="flex items-center space-x-2 text-xs font-mono text-[#f5e2a3] pt-1">
+                  <span>Identidad actual en uso:</span>
+                  <strong className="text-white bg-black/60 px-2 py-0.5 rounded border border-[#d4af37]/40">
+                    {agentIdentity.name} ({agentIdentity.role})
+                  </strong>
+                </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-black/60 border border-zinc-800 space-y-1">
-                <span className="text-[10px] text-zinc-500 uppercase font-mono">Memoria y Cerebro:</span>
-                <p className="text-xs font-bold text-[#f5e2a3]">
-                  agente-universal-ecosistemas
-                </p>
-                <p className="text-[10px] text-zinc-500 font-mono">Firestore Oficial del Agente</p>
-              </div>
+              {/* Controles del Selector de Agente */}
+              <div className="w-full lg:w-auto shrink-0 bg-[#0a0c13] p-4 rounded-2xl border border-zinc-800 space-y-3 min-w-[320px]">
+                <label className="block text-xs font-semibold text-[#f5e2a3] font-mono">
+                  Seleccionar Seudónimo / Perfil Activo:
+                </label>
+                <select
+                  value={`${agentIdentity.name}|${agentIdentity.role}`}
+                  onChange={(e) => {
+                    const [name, role] = e.target.value.split('|');
+                    cloudState.setAgentIdentity(name, role);
+                    setAgentIdentity({ name, role });
+                    setAgentFeedback(`Identidad cambiada a ${name}`);
+                    setTimeout(() => setAgentFeedback(''), 3500);
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-[#d4af37]/60 focus:border-[#d4af37] text-white text-xs outline-none transition cursor-pointer"
+                >
+                  <option value="Michael Pen|Consejero y Mentor Master Pen">Michael Pen (Mentor Principal)</option>
+                  <option value="Buy it All|Asesor Buy it All Products & Services">Buy it All (Asesor Comercial)</option>
+                  <option value="Vitrina|Curador de Vitrina Web">Vitrina (Curador Ejecutivo)</option>
+                  <option value="SubJetro|Consultor Estratégico Jetro">SubJetro (Gobernanza y Liderazgo)</option>
+                  <option value="Subsalomón|Consejero de Sabiduría Subsalomón">Subsalomón (Sabiduría y Prudencia)</option>
+                </select>
 
-              <div className="p-3.5 rounded-xl bg-black/60 border border-zinc-800 space-y-1">
-                <span className="text-[10px] text-zinc-500 uppercase font-mono">Capacidades:</span>
-                <p className="text-xs font-bold text-white">
-                  Voz TTS + Seudónimos + Blindaje
-                </p>
-                <p className="text-[10px] text-zinc-500 font-mono">Zero Dependencias Externas</p>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-zinc-500 font-mono">
+                    Aplica a Chat, Cátedras & Diapositivas
+                  </span>
+                  {agentFeedback && (
+                    <span className="text-[11px] text-emerald-400 font-bold flex items-center space-x-1 animate-in fade-in">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{agentFeedback}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Generador de Snippet y Selector */}
-          <div className="p-6 rounded-2xl bg-[#0f1017] border border-[#c5a059]/30 space-y-5 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h4 className="text-sm font-bold text-white font-serif-gold">
-                  1. Configurar Ecosistema Destino
-                </h4>
-                <p className="text-xs text-zinc-400">
-                  Selecciona la división o escribe el nombre del proyecto donde vas a insertar el script:
-                </p>
+          {/* SECCIÓN 2: MÉTRICAS Y KPIS DE AUDITORÍA ACADÉMICA */}
+          {(() => {
+            const totalEvents = auditLogs.length;
+            const examEvents = auditLogs.filter(l => l.action === 'EXAM_COMPLETED');
+            const passedExams = examEvents.filter(l => l.severity === 'success').length;
+            const loginEvents = auditLogs.filter(l => l.action === 'LOGIN').length;
+            const configEvents = auditLogs.filter(l => ['CONFIG_CHANGE', 'SECURITY_UPDATE', 'AFFILIATE_UPDATE', 'AGENT_SWITCH'].includes(l.action)).length;
+
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-[#0e1017] border border-zinc-800 shadow-lg space-y-1">
+                  <div className="flex items-center justify-between text-zinc-400">
+                    <span className="text-[11px] font-mono uppercase tracking-wider">Total Eventos</span>
+                    <Activity className="w-4 h-4 text-[#d4af37]" />
+                  </div>
+                  <p className="text-2xl md:text-3xl font-black text-white font-mono">{totalEvents}</p>
+                  <p className="text-[11px] text-zinc-500">Historial completo registrado</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#0e1017] border border-zinc-800 shadow-lg space-y-1">
+                  <div className="flex items-center justify-between text-zinc-400">
+                    <span className="text-[11px] font-mono uppercase tracking-wider">Exámenes Culminados</span>
+                    <Award className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <p className="text-2xl md:text-3xl font-black text-emerald-300 font-mono">
+                    {examEvents.length} <span className="text-xs text-zinc-400 font-normal">({passedExams} aprobados)</span>
+                  </p>
+                  <p className="text-[11px] text-zinc-500">Rigor de honor (80% mín.)</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#0e1017] border border-zinc-800 shadow-lg space-y-1">
+                  <div className="flex items-center justify-between text-zinc-400">
+                    <span className="text-[11px] font-mono uppercase tracking-wider">Inicios de Sesión</span>
+                    <UserCheck className="w-4 h-4 text-sky-400" />
+                  </div>
+                  <p className="text-2xl md:text-3xl font-black text-sky-300 font-mono">{loginEvents}</p>
+                  <p className="text-[11px] text-zinc-500">Alumnos y administradores</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#0e1017] border border-zinc-800 shadow-lg space-y-1">
+                  <div className="flex items-center justify-between text-zinc-400">
+                    <span className="text-[11px] font-mono uppercase tracking-wider">Configuraciones & CMS</span>
+                    <Sliders className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <p className="text-2xl md:text-3xl font-black text-purple-300 font-mono">{configEvents}</p>
+                  <p className="text-[11px] text-zinc-500">Cambios de sistema auditados</p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* SECCIÓN 3: BARRA DE HERRAMIENTAS, FILTROS Y EXPORTACIÓN */}
+          <div className="p-5 rounded-2xl bg-[#0e1017] border border-zinc-800 shadow-xl space-y-4">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              
+              {/* Buscador de Texto */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={auditSearchQuery}
+                  onChange={(e) => setAuditSearchQuery(e.target.value)}
+                  placeholder="Buscar por nombre, correo, bloque de examen o detalle..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black border border-zinc-700 focus:border-[#d4af37] text-white text-xs outline-none transition font-sans"
+                />
+                {auditSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setAuditSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
 
-              <select
-                value={selectedSdkEcosystem}
-                onChange={(e) => setSelectedSdkEcosystem(e.target.value)}
-                className="px-3.5 py-2 rounded-xl bg-black border border-[#c5a059]/40 text-xs font-semibold text-[#f5e2a3] outline-none cursor-pointer"
-              >
-                <option value="Master Pen Training">Master Pen Training (Academia)</option>
-                <option value="Master Pen Manga Creator">Master Pen Manga Creator</option>
-                <option value="Buy it All Products & Services">Buy it All (Tienda)</option>
-                <option value="Master Pen Creative Ideas">Master Pen Creative Ideas</option>
-                <option value="Vitrina Web">Vitrina Web</option>
-                <option value="SubJetro">SubJetro (Gobernanza)</option>
-                <option value="Subsalomón">Subsalomón (Sabiduría)</option>
-                <option value="Master Pen Studio Creations">Master Pen Studio Creations (Matriz)</option>
-              </select>
+              {/* Filtro por Acción */}
+              <div className="flex items-center space-x-2 shrink-0">
+                <Filter className="w-3.5 h-3.5 text-[#d4af37]" />
+                <select
+                  value={auditActionFilter}
+                  onChange={(e) => setAuditActionFilter(e.target.value)}
+                  className="px-3 py-2.5 rounded-xl bg-black border border-zinc-700 focus:border-[#d4af37] text-white text-xs outline-none transition cursor-pointer font-mono"
+                >
+                  <option value="ALL">Todas las Acciones</option>
+                  <option value="LOGIN">Inicios de Sesión (LOGIN)</option>
+                  <option value="EXAM_COMPLETED">Exámenes Culminados (EXAM_COMPLETED)</option>
+                  <option value="CONFIG_CHANGE">Cambios de Configuración (CONFIG_CHANGE)</option>
+                  <option value="AFFILIATE_UPDATE">Monetización y Afiliados (AFFILIATE_UPDATE)</option>
+                  <option value="SECURITY_UPDATE">Seguridad & SMTP (SECURITY_UPDATE)</option>
+                  <option value="AGENT_SWITCH">Cambio de Agente (AGENT_SWITCH)</option>
+                  <option value="CERTIFICATE_ISSUED">Certificados de Honor (CERTIFICATE_ISSUED)</option>
+                </select>
+
+                {/* Filtro por Severidad */}
+                <select
+                  value={auditSeverityFilter}
+                  onChange={(e) => setAuditSeverityFilter(e.target.value)}
+                  className="px-3 py-2.5 rounded-xl bg-black border border-zinc-700 focus:border-[#d4af37] text-white text-xs outline-none transition cursor-pointer font-mono"
+                >
+                  <option value="ALL">Todas las Severidades</option>
+                  <option value="info">Informativo (info)</option>
+                  <option value="success">Éxito / Aprobado (success)</option>
+                  <option value="warning">Advertencia (warning)</option>
+                  <option value="critical">Crítico (critical)</option>
+                </select>
+              </div>
             </div>
 
-            {/* Código HTML Oficial */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-zinc-300 font-mono">
-                  2. Código Oficial de Inserción (HTML / Head / Body):
-                </span>
+            {/* Barra de Acciones de Exportación & Utilidades */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-zinc-800/80">
+              <div className="flex items-center space-x-2">
                 <button
                   type="button"
                   onClick={() => {
-                    const snippet = `<!-- =================================================================== -->\n<!-- CEREBRO UNIVERSAL MICHAEL PEN - CONEXIÓN UNIFICADA A FIREBASE -->\n<!-- Proyecto Central: agente-universal-ecosistemas -->\n<!-- =================================================================== -->\n<script>\n  // 1. Origen de la Mansión Matriz (donde reside el motor de voz y cerebro)\n  window.MASTER_PEN_ORIGIN = "https://ais-dev-rq5irbycwkls33x4wuyzaz-506893424321.us-west1.run.app";\n\n  // 2. Nombre del ecosistema destino\n  window.MASTER_PEN_ECOSYSTEM = "${selectedSdkEcosystem}";\n</script>\n\n<!-- 3. SDK Universal con Cerebro, Voz Oficial de Michael Pen y Sincronización en Tiempo Real -->\n<script src="https://ais-dev-rq5irbycwkls33x4wuyzaz-506893424321.us-west1.run.app/agent-universal-bridge.js"></script>\n<!-- BOTÓN EXCLUSIVO PARA EL DASHBOARD ADMINISTRADOR -->\n<button \n  type="button" \n  onclick="window.UniversalAgent && window.UniversalAgent.openControlPanel ? window.UniversalAgent.openControlPanel() : alert('El Agente Michael Pen se está inicializando...')"\n  style="padding: 10px 18px; background: #0b0f17; color: #d4af37; border: 1.5px solid #d4af37; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);"\n>\n  <span>⚙️ Configurar Agente Michael Pen & Seudónimos</span>\n</button>`;
-                    navigator.clipboard.writeText(snippet);
-                    setCopiedSdkCode(true);
-                    setTimeout(() => setCopiedSdkCode(false), 3000);
+                    const csvContent = cloudState.exportAuditLogsToCsv();
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `auditoria_masterpen_${new Date().toISOString().slice(0, 10)}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setAuditFeedback('Archivo CSV descargado con éxito.');
+                    setTimeout(() => setAuditFeedback(''), 3000);
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-[#d4af37]/20 hover:bg-[#d4af37]/30 text-[#f5e2a3] border border-[#d4af37]/50 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-[#d4af37] text-zinc-300 hover:text-black border border-zinc-700 hover:border-[#d4af37] text-xs font-semibold transition cursor-pointer"
+                  title="Descargar registro en CSV para Excel"
                 >
-                  {copiedSdkCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedSdkCode ? '¡Código Copiado!' : 'Copiar Código Completo'}</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Exportar CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const jsonContent = cloudState.exportAuditLogsToJson();
+                    const blob = new Blob([jsonContent], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `auditoria_masterpen_${new Date().toISOString().slice(0, 10)}.json`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setAuditFeedback('Archivo JSON descargado con éxito.');
+                    setTimeout(() => setAuditFeedback(''), 3000);
+                  }}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 text-xs font-semibold transition cursor-pointer"
+                  title="Descargar registro en formato JSON"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Exportar JSON</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Simular un intento real de examen de alumno para verificar el sistema en vivo
+                    const blocksList = ['block_01', 'block_02', 'block_03', 'block_04', 'block_05'];
+                    const randomBlock = blocksList[Math.floor(Math.random() * blocksList.length)];
+                    const randomScore = Math.floor(Math.random() * 2) + 4; // 4 o 5
+                    cloudState.recordBlockEvaluation('usr_student_active_01', randomBlock, randomScore, 5);
+                    setAuditLogs(cloudState.getAuditLogs());
+                    setAuditFeedback('Evento de examen simulado y registrado en vivo.');
+                    setTimeout(() => setAuditFeedback(''), 3500);
+                  }}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-[#d4af37]/15 hover:bg-[#d4af37] text-[#f5e2a3] hover:text-black border border-[#d4af37]/50 text-xs font-semibold transition cursor-pointer"
+                  title="Genera un evento de examen para comprobar el registro"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Simular Examen en Vivo</span>
                 </button>
               </div>
 
-              <pre className="p-4 rounded-xl bg-black/90 border border-zinc-800 text-xs font-mono text-zinc-300 overflow-x-auto leading-relaxed shadow-inner">
-{`<!-- =================================================================== -->
-<!-- CEREBRO UNIVERSAL MICHAEL PEN - CONEXIÓN UNIFICADA A FIREBASE -->
-<!-- Proyecto Central: agente-universal-ecosistemas -->
-<!-- =================================================================== -->
-<script>
-  // 1. Origen de la Mansión Matriz (donde reside el motor de voz y cerebro)
-  window.MASTER_PEN_ORIGIN = "https://ais-dev-rq5irbycwkls33x4wuyzaz-506893424321.us-west1.run.app";
+              <div className="flex items-center space-x-3">
+                {auditFeedback && (
+                  <span className="text-xs text-emerald-400 font-semibold flex items-center space-x-1 animate-in fade-in">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{auditFeedback}</span>
+                  </span>
+                )}
 
-  // 2. Nombre del ecosistema destino
-  window.MASTER_PEN_ECOSYSTEM = "${selectedSdkEcosystem}";
-</script>
-
-<!-- 3. SDK Universal con Cerebro, Voz Oficial de Michael Pen y Sincronización en Tiempo Real -->
-<script src="https://ais-dev-rq5irbycwkls33x4wuyzaz-506893424321.us-west1.run.app/agent-universal-bridge.js"></script>
-<!-- BOTÓN EXCLUSIVO PARA EL DASHBOARD ADMINISTRADOR -->
-<button 
-  type="button" 
-  onclick="window.UniversalAgent && window.UniversalAgent.openControlPanel ? window.UniversalAgent.openControlPanel() : alert('El Agente Michael Pen se está inicializando...')"
-  style="padding: 10px 18px; background: #0b0f17; color: #d4af37; border: 1.5px solid #d4af37; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);"
->
-  <span>⚙️ Configurar Agente Michael Pen & Seudónimos</span>
-</button>`}
-              </pre>
-
-              {/* Botón de Prueba en Vivo para el Administrador */}
-              <div className="p-4 rounded-xl bg-black/40 border border-[#d4af37]/40 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="space-y-0.5 text-left">
-                  <span className="text-xs font-bold text-white">Vista Previa Interactiva del Botón:</span>
-                  <p className="text-[11px] text-zinc-400">Pruébalo aquí directamente para abrir el Panel de Activación de Seudónimos, Voz y Avatar:</p>
-                </div>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => {
-                    if ((window as any).UniversalAgent && (window as any).UniversalAgent.openControlPanel) {
-                      (window as any).UniversalAgent.openControlPanel();
-                    } else if ((window as any).MichaelPenAgent && (window as any).MichaelPenAgent.openControlPanel) {
-                      (window as any).MichaelPenAgent.openControlPanel();
-                    } else {
-                      alert('El Agente Michael Pen se está inicializando...');
+                    if (window.confirm('¿Está seguro de limpiar el registro histórico de logs? Esta acción borrará el feed actual.')) {
+                      cloudState.clearAuditLogs();
+                      setAuditLogs([]);
+                      setAuditFeedback('Registro de auditoría limpiado.');
+                      setTimeout(() => setAuditFeedback(''), 3000);
                     }
                   }}
-                  style={{ padding: '10px 18px', background: '#0b0f17', color: '#d4af37', border: '1.5px solid #d4af37', borderRadius: '12px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}
+                  className="text-xs text-zinc-500 hover:text-red-400 font-mono transition cursor-pointer"
                 >
-                  <span>⚙️ Configurar Agente Michael Pen & Seudónimos</span>
+                  Limpiar Registro
                 </button>
               </div>
             </div>
-
-            {/* Guía de Uso Rápido */}
-            <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800/80 space-y-3 text-xs text-zinc-300">
-              <h5 className="font-bold text-white uppercase text-[11px] tracking-wider text-[#d4af37]">
-                Instrucciones de Implementación en Sitios Externos:
-              </h5>
-              <ul className="space-y-1.5 text-[11px] text-zinc-400 list-disc list-inside leading-relaxed">
-                <li>Pega este código antes del cierre de la etiqueta <code className="text-zinc-200 bg-zinc-900 px-1 py-0.5 rounded">&lt;/body&gt;</code> en cualquier página web.</li>
-                <li>El widget flotante aparecerá automáticamente en la esquina inferior derecha con el avatar oficial y la voz de Michael Pen.</li>
-                <li>Adapta automáticamente el saludo y el rol institucional según el nombre indicado en <code className="text-zinc-200 bg-zinc-900 px-1 py-0.5 rounded">window.MASTER_PEN_ECOSYSTEM</code>.</li>
-                <li>Incluye protección contra jailbreaks y extracción de prompts confidenciales de manera autónoma.</li>
-              </ul>
-            </div>
           </div>
+
+          {/* SECCIÓN 4: TABLA Y FEED DE EVENTOS AUDITADOS */}
+          {(() => {
+            const filteredLogs = auditLogs.filter(log => {
+              if (auditActionFilter !== 'ALL' && log.action !== auditActionFilter) return false;
+              if (auditSeverityFilter !== 'ALL' && log.severity !== auditSeverityFilter) return false;
+              if (auditSearchQuery.trim()) {
+                const q = auditSearchQuery.toLowerCase();
+                const matchName = (log.userName || '').toLowerCase().includes(q);
+                const matchEmail = (log.userEmail || '').toLowerCase().includes(q);
+                const matchDetails = (log.details || '').toLowerCase().includes(q);
+                const matchAction = log.action.toLowerCase().includes(q);
+                if (!matchName && !matchEmail && !matchDetails && !matchAction) return false;
+              }
+              return true;
+            });
+
+            const getActionBadge = (action: AuditActionType) => {
+              switch (action) {
+                case 'LOGIN':
+                  return { label: 'Inicio de Sesión', color: 'bg-sky-950/70 text-sky-400 border-sky-800/40', icon: UserCheck };
+                case 'EXAM_COMPLETED':
+                  return { label: 'Examen Culminado', color: 'bg-emerald-950/70 text-emerald-400 border-emerald-800/40', icon: Award };
+                case 'CONFIG_CHANGE':
+                  return { label: 'Configuración', color: 'bg-purple-950/70 text-purple-400 border-purple-800/40', icon: Sliders };
+                case 'AFFILIATE_UPDATE':
+                  return { label: 'Afiliados IA', color: 'bg-[#d4af37]/20 text-[#f5e2a3] border-[#d4af37]/40', icon: Sparkles };
+                case 'SECURITY_UPDATE':
+                  return { label: 'Seguridad & SMTP', color: 'bg-blue-950/70 text-blue-400 border-blue-800/40', icon: ShieldCheck };
+                case 'AGENT_SWITCH':
+                  return { label: 'Identidad Agente', color: 'bg-amber-950/70 text-amber-400 border-amber-800/40', icon: Bot };
+                case 'CERTIFICATE_ISSUED':
+                  return { label: 'Certificado Emitido', color: 'bg-[#d4af37]/25 text-white border-[#d4af37]', icon: FileCheck };
+                default:
+                  return { label: action, color: 'bg-zinc-900 text-zinc-400 border-zinc-700', icon: Activity };
+              }
+            };
+
+            const getSeverityTag = (severity: AuditSeverity) => {
+              switch (severity) {
+                case 'success':
+                  return { label: 'Éxito', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' };
+                case 'warning':
+                  return { label: 'Alerta', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/30' };
+                case 'critical':
+                  return { label: 'Crítico', badge: 'bg-red-500/10 text-red-400 border-red-500/30' };
+                default:
+                  return { label: 'Info', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/30' };
+              }
+            };
+
+            return (
+              <div className="p-5 rounded-2xl bg-[#0e1017] border border-zinc-800 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                  <h4 className="font-bold text-sm text-white font-serif-gold flex items-center space-x-2">
+                    <History className="w-4 h-4 text-[#d4af37]" />
+                    <span>Registro Cronológico de Auditoría ({filteredLogs.length} eventos)</span>
+                  </h4>
+                  <span className="text-xs text-zinc-500 font-mono">
+                    Sincronización en Tiempo Real
+                  </span>
+                </div>
+
+                {filteredLogs.length === 0 ? (
+                  <div className="py-12 text-center space-y-2">
+                    <History className="w-10 h-10 text-zinc-600 mx-auto" />
+                    <p className="text-sm text-zinc-400 font-semibold">No se encontraron eventos coincidentes</p>
+                    <p className="text-xs text-zinc-600">Ajusta los términos de búsqueda o los filtros de acción/severidad.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredLogs.map((log) => {
+                      const actionBadge = getActionBadge(log.action);
+                      const severityTag = getSeverityTag(log.severity);
+                      const IconComponent = actionBadge.icon;
+                      const dateObj = new Date(log.timestamp);
+                      const formattedTime = !isNaN(dateObj.getTime())
+                        ? dateObj.toLocaleString('es-ES', { 
+                            day: '2-digit', 
+                            month: 'short', 
+                            year: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })
+                        : log.timestamp;
+
+                      return (
+                        <div
+                          key={log.id}
+                          className="p-4 rounded-xl bg-black/60 hover:bg-[#12141c] border border-zinc-800/80 hover:border-[#d4af37]/40 transition-all space-y-2.5"
+                        >
+                          {/* Fila Superior: Badges, Usuario y Hora */}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border flex items-center space-x-1 ${actionBadge.color}`}>
+                                <IconComponent className="w-3 h-3" />
+                                <span>{actionBadge.label}</span>
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${severityTag.badge}`}>
+                                {severityTag.label}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center space-x-2 text-xs font-mono text-zinc-400">
+                              <Clock className="w-3.5 h-3.5 text-[#d4af37]" />
+                              <span>{formattedTime}</span>
+                            </div>
+                          </div>
+
+                          {/* Fila Central: Datos del Usuario y Descripción */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                            <div className="space-y-1">
+                              <p className="text-xs sm:text-sm text-zinc-200 leading-snug">
+                                {log.details}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Fila Inferior: Metadata, IP y Chip de Identidad del Usuario */}
+                          <div className="pt-2 border-t border-zinc-800/60 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-zinc-500">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-5 h-5 rounded-full bg-zinc-800 text-[#d4af37] flex items-center justify-center font-bold text-[10px]">
+                                {(log.userName || 'U')[0].toUpperCase()}
+                              </div>
+                              <span className="text-zinc-300 font-semibold">{log.userName}</span>
+                              <span className="text-zinc-600">•</span>
+                              <span className="text-zinc-400">{log.userEmail}</span>
+                              <span className="text-zinc-600">•</span>
+                              <span className="text-[#c5a059]">{log.role}</span>
+                            </div>
+
+                            {log.metadata && Object.keys(log.metadata).length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {Object.entries(log.metadata).map(([k, v]) => (
+                                  <span key={k} className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px]">
+                                    {k}: <strong className="text-zinc-300">{String(v)}</strong>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
         </div>
       )}
 

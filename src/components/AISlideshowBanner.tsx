@@ -12,33 +12,42 @@ import {
   Clock,
   ArrowRight
 } from 'lucide-react';
-import { AI_CHRONICLES, AIChronicle } from '../data/aiChronicles';
+import { AI_CHRONICLES, AIChronicle, getResolvedAIChronicles } from '../data/aiChronicles';
 
 interface AISlideshowBannerProps {
   onSelectAI: (aiId: string) => void;
 }
 
 export const AISlideshowBanner: React.FC<AISlideshowBannerProps> = ({ onSelectAI }) => {
+  const [chronicles, setChronicles] = useState<AIChronicle[]>(getResolvedAIChronicles());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  const activeAI = AI_CHRONICLES[currentIndex] || AI_CHRONICLES[0];
+  useEffect(() => {
+    const handleUpdate = () => {
+      setChronicles(getResolvedAIChronicles());
+    };
+    window.addEventListener('mp-ai-affiliates-updated', handleUpdate);
+    return () => window.removeEventListener('mp-ai-affiliates-updated', handleUpdate);
+  }, []);
+
+  const activeAI = chronicles[currentIndex] || chronicles[0];
 
   // Auto-advance slideshow every 6 seconds when not paused
   useEffect(() => {
     if (isPaused) return;
     const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % AI_CHRONICLES.length);
+      setCurrentIndex((prev) => (prev + 1) % chronicles.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, [isPaused]);
+  }, [isPaused, chronicles.length]);
 
   const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + AI_CHRONICLES.length) % AI_CHRONICLES.length);
+    setCurrentIndex((prev) => (prev - 1 + chronicles.length) % chronicles.length);
   };
 
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % AI_CHRONICLES.length);
+    setCurrentIndex((prev) => (prev + 1) % chronicles.length);
   };
 
   return (
@@ -56,7 +65,7 @@ export const AISlideshowBanner: React.FC<AISlideshowBannerProps> = ({ onSelectAI
           </span>
         </div>
         <div className="flex items-center space-x-3 text-[11px] text-zinc-400 font-mono">
-          <span className="text-[#c5a059]">8 Arquitecturas Fundacionales</span>
+          <span className="text-[#c5a059]">11 Arquitecturas Fundacionales</span>
           <span className="hidden sm:inline text-zinc-600">|</span>
           <span className="hidden sm:inline text-zinc-300">Génesis, Creación & Literatura</span>
         </div>
@@ -81,25 +90,34 @@ export const AISlideshowBanner: React.FC<AISlideshowBannerProps> = ({ onSelectAI
         <div className="relative z-20 w-full max-w-7xl mx-auto px-6 sm:px-10 py-8 md:py-12">
           <div className="max-w-2xl space-y-4">
             
-            {/* Badges: AI Name & Creation Year */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span 
-                className="px-3 py-1 rounded-full text-xs font-bold font-mono tracking-wider border shadow-md uppercase"
-                style={{ 
-                  backgroundColor: `${activeAI.accentColor}25`, 
-                  borderColor: activeAI.accentColor,
-                  color: '#ffffff'
-                }}
+            {/* Badges: AI Official Logo, Badge & Creation Year */}
+            <div className="flex items-center space-x-3.5">
+              <div 
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border-2 bg-black shadow-2xl flex items-center justify-center p-1 shrink-0 transition-transform duration-300 hover:scale-105"
+                style={{ borderColor: activeAI.accentColor, boxShadow: `0 0 20px ${activeAI.glowColor}` }}
               >
-                {activeAI.badge}
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-black/60 border border-zinc-700 text-zinc-300 flex items-center space-x-1.5">
-                <Clock className="w-3 h-3 text-[#d4af37]" />
-                <span>Nacimiento: {activeAI.birthYear}</span>
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-black/60 border border-zinc-700 text-zinc-300 hidden sm:inline">
-                {activeAI.creator}
-              </span>
+                <img src={activeAI.logoImage} alt={activeAI.name} className="w-full h-full object-contain" />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span 
+                  className="px-3 py-1 rounded-full text-xs font-bold font-mono tracking-wider border shadow-md uppercase"
+                  style={{ 
+                    backgroundColor: `${activeAI.accentColor}25`, 
+                    borderColor: activeAI.accentColor,
+                    color: '#ffffff'
+                  }}
+                >
+                  {activeAI.badge}
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-black/60 border border-zinc-700 text-zinc-300 flex items-center space-x-1.5">
+                  <Clock className="w-3 h-3 text-[#d4af37]" />
+                  <span>Nacimiento: {activeAI.birthYear}</span>
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-black/60 border border-zinc-700 text-zinc-300 hidden sm:inline">
+                  {activeAI.creator}
+                </span>
+              </div>
             </div>
 
             {/* AI Title with Golden Accents */}
@@ -117,20 +135,33 @@ export const AISlideshowBanner: React.FC<AISlideshowBannerProps> = ({ onSelectAI
               {activeAI.summary}
             </p>
 
-            {/* Direct Action Button: Open Internal Blog Page */}
+            {/* Direct Action Buttons: Open Chronicle and Affiliate Link */}
             <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => onSelectAI(activeAI.id)}
-                className="group inline-flex items-center space-x-2.5 px-6 py-3 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#c5a059] to-[#856524] text-black font-bold text-sm tracking-wide shadow-[0_0_25px_rgba(212,175,55,0.4)] hover:shadow-[0_0_35px_rgba(212,175,55,0.6)] hover:scale-105 transition-all duration-200 cursor-pointer"
+                className="group inline-flex items-center space-x-2.5 px-5 py-3 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#c5a059] to-[#856524] text-black font-bold text-sm tracking-wide shadow-[0_0_25px_rgba(212,175,55,0.4)] hover:shadow-[0_0_35px_rgba(212,175,55,0.6)] hover:scale-105 transition-all duration-200 cursor-pointer"
               >
                 <BookOpen className="w-4 h-4 text-black" />
-                <span>Leer Crónica: El Nacimiento de {activeAI.shortName}</span>
+                <span>Leer Crónica: {activeAI.shortName}</span>
                 <ArrowRight className="w-4 h-4 text-black group-hover:translate-x-1 transition-transform" />
               </button>
 
-              <span className="text-xs text-zinc-400 font-mono hidden sm:inline">
-                Página {currentIndex + 1} de {AI_CHRONICLES.length}
+              {activeAI.affiliateUrl && (
+                <a
+                  href={activeAI.affiliateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-2 px-4 py-3 rounded-xl bg-[#131520] hover:bg-[#1a1d2e] text-[#f5e2a3] border border-[#d4af37]/60 hover:border-[#d4af37] font-semibold text-xs tracking-wider transition-all shadow-lg hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:scale-105 cursor-pointer"
+                  title={`Abrir ${activeAI.name} mediante enlace de afiliado`}
+                >
+                  <ExternalLink className="w-4 h-4 text-[#d4af37]" />
+                  <span>{activeAI.affiliateButtonText || `Probar ${activeAI.shortName}`}</span>
+                </a>
+              )}
+
+              <span className="text-xs text-zinc-400 font-mono hidden sm:inline ml-auto">
+                {currentIndex + 1} de {chronicles.length}
               </span>
             </div>
 
@@ -156,14 +187,14 @@ export const AISlideshowBanner: React.FC<AISlideshowBannerProps> = ({ onSelectAI
         </button>
       </div>
 
-      {/* Interactive Bottom Selector Strip for all 8 AIs */}
+      {/* Interactive Bottom Selector Strip for all 11 AIs */}
       <div className="bg-[#090a0f] p-3 sm:p-4 border-t border-zinc-800">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[11px] text-[#c5a059] font-mono uppercase tracking-wider">
-            Selecciona una IA para acceder a su monografía histórica:
+            Selecciona una IA para acceder a su monografía histórica & enlace:
           </p>
           <div className="flex space-x-1.5">
-            {AI_CHRONICLES.map((ai, idx) => (
+            {chronicles.map((ai, idx) => (
               <button
                 key={ai.id}
                 onClick={() => setCurrentIndex(idx)}
@@ -176,9 +207,9 @@ export const AISlideshowBanner: React.FC<AISlideshowBannerProps> = ({ onSelectAI
           </div>
         </div>
 
-        {/* Horizontal scrollable pills */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
-          {AI_CHRONICLES.map((ai, idx) => {
+        {/* Horizontal scrollable pills for all 11 AIs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-2">
+          {chronicles.map((ai, idx) => {
             const isSelected = currentIndex === idx;
             return (
               <button
@@ -198,7 +229,7 @@ export const AISlideshowBanner: React.FC<AISlideshowBannerProps> = ({ onSelectAI
                   className="w-7 h-7 rounded-lg overflow-hidden shrink-0 border border-zinc-700 flex items-center justify-center p-0.5 bg-black"
                   style={{ borderColor: isSelected ? '#d4af37' : undefined }}
                 >
-                  <img src={ai.logoImage} alt={ai.shortName} className="w-full h-full object-cover rounded-md" />
+                  <img src={ai.logoImage} alt={ai.shortName} className="w-full h-full object-contain" />
                 </div>
                 <div className="min-w-0">
                   <p className={`text-xs font-bold truncate ${isSelected ? 'text-[#f5e2a3]' : 'text-zinc-200'}`}>

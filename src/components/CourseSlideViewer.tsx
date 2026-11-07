@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { QUIERO_SER_ESCRITOR_BLOCKS, CourseSlide, CourseBlockData } from '../data/quieroSerEscritorCourse';
 import { VoiceAgent } from '../services/voiceAgent';
+import { MasterAudioArbiter } from '../services/audioArbiter';
 import { cloudState } from '../services/cloudState';
 
 interface CourseSlideViewerProps {
@@ -58,7 +59,14 @@ export const CourseSlideViewer: React.FC<CourseSlideViewerProps> = ({
 
   // Trigger Formato Michael Pen whenever slide or block changes
   const startMichaelPenPrologue = (slide: CourseSlide) => {
-    VoiceAgent.stopSpeaking();
+    // Si el chat flotante de Michael Pen está abierto, jamás superponer la narrativa
+    if (MasterAudioArbiter.isChatOpen()) {
+      setIsPrologueDimmed(false);
+      setIsNarrating(false);
+      return;
+    }
+
+    VoiceAgent.stopSpeaking(false);
     setIsNarrating(false);
 
     if (!useMichaelPenFormat) {
@@ -103,10 +111,20 @@ export const CourseSlideViewer: React.FC<CourseSlideViewerProps> = ({
     }
   }, [currentBlockId]);
 
-  // Clean up narration on unmount
+  // Clean up narration on unmount and listen to global silence requests
   useEffect(() => {
+    const handleSilence = () => {
+      VoiceAgent.stopSpeaking(false);
+      setIsNarrating(false);
+      setIsPrologueDimmed(false);
+      setActiveSentence('');
+    };
+    window.addEventListener('mp-silence-all-narration', handleSilence);
+    window.addEventListener('mp-master-audio-silence', handleSilence);
     return () => {
-      VoiceAgent.stopSpeaking();
+      window.removeEventListener('mp-silence-all-narration', handleSilence);
+      window.removeEventListener('mp-master-audio-silence', handleSilence);
+      VoiceAgent.stopSpeaking(false);
     };
   }, []);
 

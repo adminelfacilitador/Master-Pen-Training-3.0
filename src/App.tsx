@@ -13,15 +13,13 @@ import { CertificateModal } from './components/CertificateModal';
 import { VisitorPaywall } from './components/VisitorPaywall';
 import { AuthModal } from './components/AuthModal';
 import { ImageUploadModal, UploadCategory } from './components/ImageUploadModal';
-import { MichaelPenAgentModal } from './components/MichaelPenAgentModal';
-import { MichaelPenFloatingWidget } from './components/MichaelPenFloatingWidget';
 import { UserProfileModal } from './components/UserProfileModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { cloudState, BrandingImages } from './services/cloudState';
 import { SecurityShield } from './services/securityShield';
 import { UserProfile } from './types';
 import { BRANDING } from './assets/branding';
-import { BookOpen, Sparkles, Award, Sliders, Shield, Smartphone, Upload, Bot, MessageSquare, Compass, User, RefreshCw } from 'lucide-react';
+import { BookOpen, Sparkles, Award, Sliders, Shield, Smartphone, Upload, MessageSquare, Compass, User, RefreshCw } from 'lucide-react';
 
 // Lazy-loaded AdminCMS to prevent main-thread execution bottleneck and black screen on load
 const AdminCMS = lazy(() => import('./components/AdminCMS').then(m => ({ default: m.AdminCMS })));
@@ -32,7 +30,6 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
   const [selectedUploadCategory, setSelectedUploadCategory] = useState<UploadCategory>('studioCreationsLogo');
-  const [isAgentModalOpen, setIsAgentModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState<boolean>(false);
   const [targetExamBlockId, setTargetExamBlockId] = useState<string>('block_01');
@@ -55,6 +52,18 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Synchronize admin status with Universal Agent Bridge
+  useEffect(() => {
+    const isAdmin = currentUser?.role === 'admin_principal' || currentUser?.role === 'admin_vip_tester';
+    if (typeof window !== 'undefined') {
+      (window as any).__mpIsAdmin = isAdmin;
+      if (typeof (window as any).__mpUpdateAdminPrivileges === 'function') {
+        (window as any).__mpUpdateAdminPrivileges(isAdmin);
+      }
+      window.dispatchEvent(new CustomEvent('mp-auth-changed', { detail: { isAdmin, role: currentUser?.role } }));
+    }
+  }, [currentUser]);
 
   // Hash-based routing to prevent black screen or frozen state on direct URL navigation / Cloudflare Pages reloads
   useEffect(() => {
@@ -117,7 +126,6 @@ export default function App() {
         setActiveTab={handleTabChange}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenImageModal={() => handleOpenImageUpload('logo')}
-        onOpenAgentModal={() => setIsAgentModalOpen(true)}
         onOpenUserProfile={() => setIsProfileModalOpen(true)}
       />
 
@@ -164,7 +172,6 @@ export default function App() {
                     onOpenExam={handleOpenExam}
                     onBackToEcosystem={() => handleTabChange('ecosystem')}
                     onOpenImageModal={handleOpenImageUpload}
-                    onOpenAgentModal={() => setIsAgentModalOpen(true)}
                   />
                 </div>
               )}
@@ -375,15 +382,6 @@ export default function App() {
         defaultTarget={selectedUploadCategory}
         onClose={() => setIsImageModalOpen(false)}
       />
-
-      {/* Michael Pen AI & Voice Host Agent Modal */}
-      <MichaelPenAgentModal
-        isOpen={isAgentModalOpen}
-        onClose={() => setIsAgentModalOpen(false)}
-      />
-
-      {/* Official Universal Agent Michael Pen Floating Widget (Manga Creator, Training & Ecosystem) */}
-      <MichaelPenFloatingWidget ecosystemId="training" />
 
       {/* Footer */}
       <footer className="border-t border-[#c5a059]/20 bg-[#08090b] py-6 px-4 text-center text-xs text-zinc-500 space-y-2">

@@ -59,8 +59,16 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({
 
   useEffect(() => {
     initializeExam(selectedBlockId);
+    const handleSilence = () => {
+      VoiceAgent.stopSpeaking(false);
+      setIsPrologueDimmed(false);
+    };
+    window.addEventListener('mp-silence-all-narration', handleSilence);
+    window.addEventListener('mp-master-audio-silence', handleSilence);
     return () => {
-      VoiceAgent.stopSpeaking();
+      window.removeEventListener('mp-silence-all-narration', handleSilence);
+      window.removeEventListener('mp-master-audio-silence', handleSilence);
+      VoiceAgent.stopSpeaking(false);
     };
   }, [selectedBlockId]);
 

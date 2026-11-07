@@ -65,12 +65,20 @@ export const EscrituraCreativaViewer: React.FC<EscrituraCreativaViewerProps> = (
   const slides = ESCRITURA_CREATIVA_M1_SLIDES;
   const currentSlide = slides[currentSlideIndex];
 
-  // Stop speaking when slide changes or unmounts
+  // Stop speaking when slide changes or unmounts, or when global silence is triggered
   useEffect(() => {
-    VoiceAgent.stopSpeaking();
+    VoiceAgent.stopSpeaking(false);
     setIsSpeaking(false);
+    const handleSilence = () => {
+      VoiceAgent.stopSpeaking(false);
+      setIsSpeaking(false);
+    };
+    window.addEventListener('mp-silence-all-narration', handleSilence);
+    window.addEventListener('mp-master-audio-silence', handleSilence);
     return () => {
-      VoiceAgent.stopSpeaking();
+      window.removeEventListener('mp-silence-all-narration', handleSilence);
+      window.removeEventListener('mp-master-audio-silence', handleSilence);
+      VoiceAgent.stopSpeaking(false);
     };
   }, [currentSlideIndex]);
 

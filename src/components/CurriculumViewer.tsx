@@ -46,15 +46,13 @@ interface CurriculumViewerProps {
   onOpenExam: (blockId: string) => void;
   onBackToEcosystem?: () => void;
   onOpenImageModal?: (category?: keyof BrandingImages) => void;
-  onOpenAgentModal?: () => void;
 }
 
 export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
   currentUser,
   onOpenExam,
   onBackToEcosystem,
-  onOpenImageModal,
-  onOpenAgentModal
+  onOpenImageModal
 }) => {
   const [branding, setBranding] = useState<BrandingImages>(cloudState.getBrandingImages());
   const [blocks, setBlocks] = useState<AcademicBlock[]>(cloudState.getBlocks());

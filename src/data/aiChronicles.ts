@@ -7,6 +7,7 @@ import bannerChatGPT from '../assets/images/ai_banner_chatgpt_1790887856906.jpg'
 import bannerClaude from '../assets/images/ai_banner_claude_1790887871892.jpg';
 import bannerDeepSeek from '../assets/images/ai_banner_deepseek_1790887889510.jpg';
 import bannerMidjourney from '../assets/images/ai_banner_midjourney_1790887901500.jpg';
+import { AI_OFFICIAL_LOGOS } from './aiLogos';
 
 export interface AIChronicle {
   id: string;
@@ -21,6 +22,9 @@ export interface AIChronicle {
   logoImage: string;
   accentColor: string;
   glowColor: string;
+  affiliateUrl?: string;
+  affiliateButtonText?: string;
+  officialUrl?: string;
   genesisStory: string[];
   architecturalBreakthroughs: string[];
   impactOnAuthors: string[];
@@ -40,12 +44,15 @@ export const AI_CHRONICLES: AIChronicle[] = [
     creator: 'Google DeepMind & Google Research',
     birthYear: 2023,
     badge: 'Multimodal Nativo',
-    tagline: 'La sinfonía universal del razonamiento跨modal en tiempo real',
+    tagline: 'La sinfonía universal del razonamiento multimodal en tiempo real',
     summary: 'Concebido desde sus cimientos para procesar texto, código, audio, imágenes y video sin traducción intermedia, Gemini representa la convergencia suprema de DeepMind y Google Brain.',
     bannerImage: bannerGemini,
-    logoImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80',
+    logoImage: AI_OFFICIAL_LOGOS.gemini,
     accentColor: '#38bdf8',
     glowColor: 'rgba(56, 189, 248, 0.4)',
+    affiliateUrl: 'https://gemini.google.com',
+    affiliateButtonText: 'Explorar Google Gemini (Afiliado Master Pen)',
+    officialUrl: 'https://gemini.google.com',
     genesisStory: [
       'En abril de 2023, Sundar Pichai anunció la histórica fusión entre dos titanes de la computación moderna: Google Brain (pioneros de la arquitectura Transformer en 2017) y DeepMind (creadores de AlphaGo y AlphaFold), bajo el liderazgo visionario de Demis Hassabis.',
       'El propósito no era crear otro modelo lingüístico aislado, sino gestar una mente artificial "nativamente multimodal". Mientras las arquitecturas previas dependían de pegar módulos separados de visión o audio a un motor textual, Gemini fue preentrenado desde el primer segundo sobre representaciones interrelacionadas de bytes de imagen, espectros de audio, secuencias de video y manuscritos lingüísticos.',
@@ -80,9 +87,12 @@ export const AI_CHRONICLES: AIChronicle[] = [
     tagline: 'La chispa autorregresiva que despertó la conversación con la máquina',
     summary: 'A través de la osadía de escalar redes neuronales y el refinamiento mediante RLHF, OpenAI transformó el texto probabilístico en un diálogo humano cautivador.',
     bannerImage: bannerChatGPT,
-    logoImage: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=400&auto=format&fit=crop&q=80',
+    logoImage: AI_OFFICIAL_LOGOS.chatgpt,
     accentColor: '#10b981',
     glowColor: 'rgba(16, 185, 129, 0.4)',
+    affiliateUrl: 'https://chatgpt.com',
+    affiliateButtonText: 'Probar ChatGPT Plus (Afiliado Master Pen)',
+    officialUrl: 'https://openai.com',
     genesisStory: [
       'En 2015, en una cena íntima en el hotel Rosewood de Menlo Park, un grupo de científicos liderados por Ilya Sutskever y visionarios tecnológicos fundaron OpenAI con una premisa radical: la inteligencia artificial general debía beneficiar a la humanidad.',
       'Mientras gran parte de la academia dudaba del poder del aprendizaje profundo a escala, Sutskever sostuvo la "Hipótesis del Escalamiento": alimentar modelos autorregresivos con terabytes de literatura humana produciría no solo correlación, sino comprensión emergente del mundo.',
@@ -117,9 +127,12 @@ export const AI_CHRONICLES: AIChronicle[] = [
     tagline: 'La cadencia elegante de la prudencia intelectual y la alta ética',
     summary: 'Bautizado en honor al padre de la teoría de la información, Claude es la creación predilecta de los escritores por su prosa reflexiva, su calidez respetuosa y su lealtad constitucional.',
     bannerImage: bannerClaude,
-    logoImage: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&auto=format&fit=crop&q=80',
+    logoImage: AI_OFFICIAL_LOGOS.claude,
     accentColor: '#d97706',
     glowColor: 'rgba(217, 119, 6, 0.4)',
+    affiliateUrl: 'https://claude.ai',
+    affiliateButtonText: 'Acceder a Claude Pro (Afiliado Master Pen)',
+    officialUrl: 'https://anthropic.com',
     genesisStory: [
       'En 2021, Dario Amodei (vicepresidente de investigación en OpenAI) y su hermana Daniela Amodei, junto a un equipo de científicos principales, decidieron fundar Anthropic como una empresa de beneficio público (PBC). Sentían que la carrera por la escala requería una brújula de seguridad mucho más rigurosa.',
       'Su nombre rinde homenaje a Claude Shannon, el matemático que formuló la Teoría Matemática de la Comunicación en 1948. Anthropic se propuso construir una IA que no solo fuera competente, sino "honesta, útil e inocua", sin necesidad de intervención manual punitiva constante.',
@@ -154,9 +167,12 @@ export const AI_CHRONICLES: AIChronicle[] = [
     tagline: 'El terremoto de la ingeniería matemática pura y los pesos abiertos',
     summary: 'Desde Hangzhou, DeepSeek desafió los monopolios multimillonarios de cómputo demostrando que el ingenio algorítmico supera a la fuerza bruta.',
     bannerImage: bannerDeepSeek,
-    logoImage: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&auto=format&fit=crop&q=80',
+    logoImage: AI_OFFICIAL_LOGOS.deepseek,
     accentColor: '#3b82f6',
     glowColor: 'rgba(59, 130, 246, 0.4)',
+    affiliateUrl: 'https://chat.deepseek.com',
+    affiliateButtonText: 'Explorar DeepSeek R1 (Afiliado Master Pen)',
+    officialUrl: 'https://deepseek.com',
     genesisStory: [
       'A principios de 2023, Liang Wenfeng, fundador del fondo de cobertura cuantitativo High-Flyer, decidió apostar por la investigación pura de inteligencia artificial sin el lastre de la especulación de Wall Street. Así nació DeepSeek en Hangzhou.',
       'Frente a la creencia occidental de que solo clusters de cientos de miles de chips de última generación podían competir en la frontera, el equipo de DeepSeek se concentró en la elegancia arquitectónica: optimizar la memoria GPU, rediseñar los mecanismos de atención y exprimir cada ciclo computacional.',
@@ -190,9 +206,12 @@ export const AI_CHRONICLES: AIChronicle[] = [
     tagline: 'El lienzo cuántico donde las palabras se convierten en pintura inmortal',
     summary: 'Fundado por David Holz sin capital de riesgo tradicional, Midjourney convirtió los modelos de difusión en una abadía digital de arte, misterio y portadas literarias sublimes.',
     bannerImage: bannerMidjourney,
-    logoImage: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=400&auto=format&fit=crop&q=80',
+    logoImage: AI_OFFICIAL_LOGOS.midjourney,
     accentColor: '#c5a059',
     glowColor: 'rgba(197, 160, 89, 0.4)',
+    affiliateUrl: 'https://midjourney.com',
+    affiliateButtonText: 'Crear Portadas con Midjourney (Afiliado Master Pen)',
+    officialUrl: 'https://midjourney.com',
     genesisStory: [
       'David Holz, célebre inventor y cofundador de Leap Motion, decidió en 2021 fundar un pequeño laboratorio de investigación independiente autofinanciado con un objetivo casi místico: "expandir los poderes imaginativos de la especie humana".',
       'A diferencia de las corporaciones que priorizaban el realismo documental o la precisión fotogramétrica, Holz y su equipo sintonizaron sus algoritmos hacia la poesía visual: pinceladas impresionistas, claroscuros renacentistas, texturas al óleo y atmósferas evocadoras.',
@@ -226,9 +245,12 @@ export const AI_CHRONICLES: AIChronicle[] = [
     tagline: 'El bastión científico de la investigación libre y la soberanía de datos',
     summary: 'Bajo el liderazgo académico de Yann LeCun, Meta desafió el cercamiento privativo entregando modelos de frontera para que cada universidad, autor y creador opere con total privacidad.',
     bannerImage: bannerMasterPen,
-    logoImage: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&auto=format&fit=crop&q=80',
+    logoImage: AI_OFFICIAL_LOGOS.llama,
     accentColor: '#818cf8',
     glowColor: 'rgba(129, 140, 248, 0.4)',
+    affiliateUrl: 'https://llama.meta.com',
+    affiliateButtonText: 'Descargar Meta Llama (Comunidad Master Pen)',
+    officialUrl: 'https://llama.meta.com',
     genesisStory: [
       'En febrero de 2023, Yann LeCun (galardonado con el Premio Turing) y el equipo de Fundamental AI Research (FAIR) de Meta tomaron una decisión que reconfiguraría el tablero tecnológico mundial: publicar LLaMA como un modelo de código abierto para investigadores.',
       'Aunque la primera versión se filtró inicialmente a la comunidad académica, Mark Zuckerberg y LeCun respaldaron una estrategia transparente para Llama 2 y Llama 3: licencias comerciales gratuitas para que cualquier persona en el planeta pudiera auditar, afinar y ejecutar la IA en sus propios servidores.',
@@ -262,9 +284,12 @@ export const AI_CHRONICLES: AIChronicle[] = [
     tagline: 'El fin del rumor digital y la apoteosis de la bibliografía verificada',
     summary: 'Nacido para erradicar las alucinaciones en la investigación, Perplexity sintetiza la web viva con notas al pie y fuentes primarias para autores de no ficción.',
     bannerImage: bannerGemini,
-    logoImage: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&auto=format&fit=crop&q=80',
+    logoImage: AI_OFFICIAL_LOGOS.perplexity,
     accentColor: '#2dd4bf',
     glowColor: 'rgba(45, 212, 191, 0.4)',
+    affiliateUrl: 'https://perplexity.ai',
+    affiliateButtonText: 'Investigar con Perplexity Pro (Afiliado Master Pen)',
+    officialUrl: 'https://perplexity.ai',
     genesisStory: [
       'En agosto de 2022, cuatro científicos provenientes de OpenAI, Meta AI y UC Berkeley —Aravind Srinivas, Denis Yarats, Johnny Ho y Andy Konwinski— coincidieron en un diagnóstico implacable: los buscadores tradicionales estaban infectados de publicidad y enlaces basura, mientras que los chatbots alucinaban citas inexistentes.',
       'Su visión fue combinar la destreza sintética de los grandes modelos de lenguaje con motores de recuperación en tiempo real (RAG) obsesionados con la verdad demostrable.',
@@ -298,9 +323,12 @@ export const AI_CHRONICLES: AIChronicle[] = [
     tagline: 'La alta costura parisina de la densidad paramétrica y la brevedad soberbia',
     summary: 'Fundada en el corazón de París por prodigios de DeepMind y Meta, Mistral demostró que un modelo ágil y bien templado puede derrotar a gigantes diez veces más pesados.',
     bannerImage: bannerChatGPT,
-    logoImage: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&auto=format&fit=crop&q=80',
+    logoImage: AI_OFFICIAL_LOGOS.mistral,
     accentColor: '#f97316',
     glowColor: 'rgba(249, 115, 22, 0.4)',
+    affiliateUrl: 'https://mistral.ai',
+    affiliateButtonText: 'Explorar Mistral Le Chat (Afiliado Master Pen)',
+    officialUrl: 'https://mistral.ai',
     genesisStory: [
       'En mayo de 2023, en los cafés del barrio latino de París, tres amigos y brillantes investigadores —Arthur Mensch (proveniente de Google DeepMind) y Guillaume Lample junto a Timothée Lacroix (ambos cerebros clave de FAIR en Meta)— decidieron erigir un bastión europeo de inteligencia artificial independiente.',
       'Su nombre evoca al "Mistral", el viento impetuoso y purificador del sur de Francia que despeja las tormentas y deja un cielo azul impecable. Con apenas seis semanas de existencia y sin un producto comercial, recaudaron la mayor ronda semilla europea de la historia: 105 millones de euros.',
@@ -323,5 +351,198 @@ export const AI_CHRONICLES: AIChronicle[] = [
       { date: 'Diciembre 2023', title: 'Mixtral 8x7B', description: 'Consagración de la arquitectura Sparse MoE de alta eficiencia.' },
       { date: '2024 - Presente', title: 'Mistral Large & Le Chat', description: 'Competencia en la cúspide del razonamiento mundial y herramientas para autores.' }
     ]
+  },
+  {
+    id: 'n8n',
+    name: 'n8n - AI Agents & Workflows',
+    shortName: 'n8n',
+    creator: 'Jan Oberhauser (Berlín, Alemania)',
+    birthYear: 2019,
+    badge: 'Orquestador de Agentes',
+    tagline: 'El telar visual donde la lógica humana enlaza modelos, datos y acciones reales',
+    summary: 'Plataforma fair-code pionera en orquestación de flujos de trabajo e Inteligencia Artificial basada en nodos, permitiendo a autores y creadores crear agentes autónomos sin atarse a infraestructuras privativas.',
+    bannerImage: bannerDeepSeek,
+    logoImage: AI_OFFICIAL_LOGOS.n8n,
+    accentColor: '#ea4b71',
+    glowColor: 'rgba(234, 75, 113, 0.4)',
+    affiliateUrl: 'https://n8n.io',
+    affiliateButtonText: 'Iniciar en n8n Cloud (Afiliado Master Pen)',
+    officialUrl: 'https://n8n.io',
+    genesisStory: [
+      'En 2019, en Berlín, el desarrollador Jan Oberhauser se enfrentaba a una frustración recurrente: las herramientas de automatización existentes eran de código cerrado, costosas por ejecución y carecían de la flexibilidad que requiere un artesano digital. Decidió escribir n8n («nodomation») como un proyecto de código abierto y fair-code.',
+      'Cuando la revolución de los modelos LLM estalló entre 2022 y 2023, n8n contaba con una ventaja estructural descomunal: su arquitectura modular permitía insertar nodos de LangChain, memorias vectoriales (Pinecone, Qdrant), llamadas a Gemini, Claude u OpenAI, y herramientas ejecutables en cuestión de minutos.',
+      'Hoy, n8n se ha erigido en la sala de máquinas indiscutible de los escritores modernos, consultores y empresas que desean conectar agentes de IA con sus manuscritos, hojas de cálculo, sistemas de correo y bases de datos soberanas con total control de privacidad.'
+    ],
+    architecturalBreakthroughs: [
+      'Visual Canvas Multi-Agente: Construcción de pipelines cognitivos mediante diagramas de nodos intuitivos sin escribir cientos de líneas de código "pegamento".',
+      'Integración Natively Fair-Code & Self-Hosted: Posibilidad de auto-hospedar n8n en servidores Docker propios sin costos por tarea ni filtraciones de manuscritos.',
+      'LangChain & Vector Stores Nativos: Conexión directa con agentes de razonamiento capaces de consultar libros enteros y disparar acciones automáticas en el mundo real.'
+    ],
+    impactOnAuthors: [
+      'Canales Automatizados de Investigación: Nodos que recopilan automáticamente artículos, noticias históricas y referencias bibliográficas en Google Drive.',
+      'Agentes de Publicación Automática: Automatización del envío de boletines literarios, actualizaciones de capítulos y distribución en plataformas de lectores.',
+      'Sincronización de Catálogos Editoriales: Gestión en tiempo real del inventario de libros impresos, pedidos de autor y facturación internacional.'
+    ],
+    philosophicalVerdict: 'n8n demuestra que el verdadero poder de la inteligencia artificial no radica en el aislamiento del chat, sino en su capacidad de tejer puentes invisibles entre el intelecto y la acción.',
+    keyMilestones: [
+      { date: 'Junio 2019', title: 'Primera versión de n8n', description: 'Jan Oberhauser publica en GitHub el primer motor visual de automatización basada en nodos.' },
+      { date: '2021', title: 'Lanzamiento de n8n Cloud', description: 'Apertura de la plataforma gestionada para creadores y equipos de alto impacto.' },
+      { date: '2023 - 2024', title: 'Revolución AI Nodes & LangChain', description: 'Incorporación de agentes autónomos, memoria conversacional y bases de datos vectoriales.' },
+      { date: '2025 - Presente', title: 'Ecosistema de Agentes Soberanos', description: 'Estándar mundial para autores que operan sistemas de IA sin intermediarios privativos.' }
+    ]
+  },
+  {
+    id: 'copilot',
+    name: 'Microsoft Copilot',
+    shortName: 'Copilot',
+    creator: 'Microsoft & OpenAI (Satya Nadella)',
+    birthYear: 2023,
+    badge: 'Sinergia de Oficina',
+    tagline: 'El copiloto ubicuo integrado en el sistema operativo y el software editorial',
+    summary: 'Nacido de la colosal alianza estratégica entre Microsoft y OpenAI, Copilot fusionó los modelos GPT con el Microsoft Graph y la suite Office para transformar el procesamiento de palabras de miles de millones de personas.',
+    bannerImage: bannerChatGPT,
+    logoImage: AI_OFFICIAL_LOGOS.copilot,
+    accentColor: '#0078d4',
+    glowColor: 'rgba(0, 120, 212, 0.4)',
+    affiliateUrl: 'https://copilot.microsoft.com',
+    affiliateButtonText: 'Suscribirse a Copilot Pro (Afiliado Master Pen)',
+    officialUrl: 'https://copilot.microsoft.com',
+    genesisStory: [
+      'En febrero de 2023, Satya Nadella subió al escenario en Redmond para proclamar "un nuevo día en las búsquedas y la computación". Tras invertir más de 13 mil millones de dólares en OpenAI, Microsoft concibió un proyecto que integraría la inteligencia artificial directamente en los cimientos de Windows, Word, Excel, PowerPoint y GitHub.',
+      'Bajo la arquitectura "Prometheus", Copilot no solo invoca un modelo conversacional, sino que analiza el contexto íntimo de los archivos del autor: sus notas previas, correos electrónicos, diapositivas y bibliografías abiertas en su escritorio.',
+      'Para el escritor que vive y redacta en Microsoft Word, la presencia de Copilot supuso la muerte definitiva de la pantalla en blanco: un asistente que comprende el tono institucional, reescribe párrafos con precisión quirúrgica y resume actas de reunión al vuelo.'
+    ],
+    architecturalBreakthroughs: [
+      'Modelo Orquestador Prometheus: Capacidad de combinar la indexación en tiempo real de Bing con la potencia semántica de GPT-4o para verificar hechos.',
+      'Integración Nativa en el Lienzo Editorial: Copilot vive dentro de los márgenes de Word, analizando la estructura sintáctica sin obligar al autor a salir a un navegador.',
+      'Microsoft Graph Semántico: Comprensión relacional de todos los borradores, correos de lectores y contratos editoriales del creador.'
+    ],
+    impactOnAuthors: [
+      'Redacción y Pulido en el Procesador de Textos: Generar borradores de capítulos o ajustar el registro formal con un solo comando lateral en Word.',
+      'Diseño Automático de Presentaciones: Transformar un ensayo o capítulo de libro en una secuencia de diapositivas elegantes para conferencias.',
+      'Análisis de Contratos y Acuerdos de Publicación: Resumen claro de cláusulas complejas de regalías, cesión de derechos y fechas límite.'
+    ],
+    philosophicalVerdict: 'Copilot consolidó la transición de la máquina de escribir mecánica al entorno de co-creación inteligente: el autor sigue siendo el capitán indiscutible; el software sostiene el compás.',
+    keyMilestones: [
+      { date: 'Febrero 2023', title: 'Anuncio de Bing Chat con Prometheus', description: 'La búsqueda web conversacional desafía por primera vez el monopolio tradicional.' },
+      { date: 'Marzo 2023', title: 'Presentación de Microsoft 365 Copilot', description: 'Integración en Word, Excel, PowerPoint y Outlook.' },
+      { date: 'Noviembre 2023', title: 'Disponibilidad General y Rebranding', description: 'Unificación de todas las experiencias de IA bajo la marca insignia Microsoft Copilot.' },
+      { date: '2024 - Presente', title: 'Copilot Studio & PC Copilot+', description: 'Inferencia local en chips NPU de silicio y creación de copilotos personalizados para autores.' }
+    ]
+  },
+  {
+    id: 'grok',
+    name: 'xAI Grok',
+    shortName: 'Grok',
+    creator: 'xAI (Elon Musk & equipo científico fundacional)',
+    birthYear: 2023,
+    badge: 'Audacia en Tiempo Real',
+    tagline: 'El buscador de la verdad cósmica sin filtros y en sincronía con el pulso vivo de X',
+    summary: 'Inspirado en la Guía del Autoestopista Galáctico, Grok fue forjado en tiempo récord en el supercluster Colossus de Memphis para razonar con ingenio, sarcasmo fino y acceso al flujo de datos en tiempo real de X.',
+    bannerImage: bannerClaude,
+    logoImage: AI_OFFICIAL_LOGOS.grok,
+    accentColor: '#ffffff',
+    glowColor: 'rgba(255, 255, 255, 0.4)',
+    affiliateUrl: 'https://x.ai',
+    affiliateButtonText: 'Acceder a Grok en X Premium (Afiliado Master Pen)',
+    officialUrl: 'https://x.ai',
+    genesisStory: [
+      'En julio de 2023, Elon Musk anunció la creación de xAI, reuniendo a investigadores provenientes de DeepMind, Google Research, OpenAI y Microsoft con una misión provocadora: "comprender la verdadera naturaleza del universo". Su primer producto, Grok, fue bautizado en honor al concepto acuñado por Robert A. Heinlein en su obra clásica «Forastero en tierra extraña» (comprender algo de forma tan profunda que te vuelves uno con ello).',
+      'Entrenado en un tiempo récord de apenas cuatro meses, Grok fue dotado de dos rasgos distintivos: acceso en tiempo real a los millones de publicaciones y noticias de última hora en la red social X, y una disposición humorística, mordaz y desinhibida, diseñada para evitar la timidez corporativa de otros asistentes.',
+      'Con la construcción en 2024 del cluster Colossus en Memphis (equipado con 100,000 GPUs NVIDIA H100), xAI demostró una velocidad de entrenamiento sin precedentes en la historia de la computación, posicionando a Grok-2 y Grok-3 en la vanguardia del razonamiento científico, la sátira literaria y la investigación periodística sin concesiones.'
+    ],
+    architecturalBreakthroughs: [
+      'Supercluster Colossus (100k+ H100): El mayor centro de datos de cómputo unificado del planeta, ensamblado y operativo en tiempo récord mundial.',
+      'Sincronización en Tiempo Real con X: Ingesta continua de acontecimientos globales, debates culturales y declaraciones públicas en el segundo exacto en que suceden.',
+      'Generación Visual sin Censura Puritana (Aurora/FLUX): Síntesis gráfica osada para portadas de novelas satíricas, distopías políticas y ciencia ficción de choque.'
+    ],
+    impactOnAuthors: [
+      'Novelas de Ficción Política y Sátira Contemporánea: Ideal para autores que buscan diálogos irreverentes, personajes cínicos y comentarios mordaces sobre la sociedad moderna.',
+      'Monitoreo de Debates Culturales en Vivo: Identificar qué temas, polémicas o tendencias están capturando la atención del público lector al instante.',
+      'Creación de Diálogos con Personalidad Inquebrantable: Salir del molde complaciente y predecible de los chatbots convencionales para moldear antihéroes memorables.'
+    ],
+    philosophicalVerdict: 'Grok nos recuerda que la literatura y el intelecto no deben temerle a la ironía ni al debate incómodo: la verdadera lucidez nace de confrontar la realidad con valentía y agudeza.',
+    keyMilestones: [
+      { date: 'Julio 2023', title: 'Fundación de xAI', description: 'Elon Musk funda el laboratorio en el área de la bahía con un equipo de élite en razonamiento.' },
+      { date: 'Noviembre 2023', title: 'Lanzamiento de Grok-1', description: 'Presentación del modelo con acceso en tiempo real a la red X.' },
+      { date: 'Agosto 2024', title: 'Grok-2 y Generación Visual', description: 'Salto cuántico en razonamiento lógico y renderizado de imágenes de alto impacto.' },
+      { date: '2025 - Presente', title: 'Era Colossus & Grok-3', description: 'Potencia masiva para investigación de frontera y diálogo literario sin censura.' }
+    ]
   }
 ];
+
+const AFFILIATE_STORAGE_KEY = 'mpt_ai_affiliate_settings';
+
+export interface AIAffiliateSetting {
+  id: string;
+  affiliateUrl: string;
+  affiliateButtonText: string;
+  enabled: boolean;
+}
+
+export function getStoredAIAffiliates(): Record<string, AIAffiliateSetting> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(AFFILIATE_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn('[AIAffiliates] Error reading stored affiliates:', e);
+  }
+  return {};
+}
+
+export function saveStoredAIAffiliate(id: string, setting: Partial<AIAffiliateSetting>) {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getStoredAIAffiliates();
+    const existing = current[id] || {
+      id,
+      affiliateUrl: AI_CHRONICLES.find(c => c.id === id)?.affiliateUrl || '',
+      affiliateButtonText: AI_CHRONICLES.find(c => c.id === id)?.affiliateButtonText || '',
+      enabled: true
+    };
+    current[id] = { ...existing, ...setting };
+    localStorage.setItem(AFFILIATE_STORAGE_KEY, JSON.stringify(current));
+    
+    // Update in-memory reference
+    const chronicle = AI_CHRONICLES.find(c => c.id === id);
+    if (chronicle) {
+      if (setting.affiliateUrl !== undefined) chronicle.affiliateUrl = setting.affiliateUrl;
+      if (setting.affiliateButtonText !== undefined) chronicle.affiliateButtonText = setting.affiliateButtonText;
+    }
+    
+    window.dispatchEvent(new CustomEvent('mp-ai-affiliates-updated', { detail: current }));
+  } catch (e) {
+    console.warn('[AIAffiliates] Error saving affiliate setting:', e);
+  }
+}
+
+export function getResolvedAIChronicles(): AIChronicle[] {
+  const stored = getStoredAIAffiliates();
+  return AI_CHRONICLES.map(chronicle => {
+    const override = stored[chronicle.id];
+    if (override) {
+      return {
+        ...chronicle,
+        affiliateUrl: override.affiliateUrl !== undefined ? override.affiliateUrl : chronicle.affiliateUrl,
+        affiliateButtonText: override.affiliateButtonText !== undefined ? override.affiliateButtonText : chronicle.affiliateButtonText
+      };
+    }
+    return chronicle;
+  });
+}
+
+// Hydrate in-memory on module evaluation if in browser
+if (typeof window !== 'undefined') {
+  try {
+    const stored = getStoredAIAffiliates();
+    AI_CHRONICLES.forEach(c => {
+      if (stored[c.id]) {
+        if (stored[c.id].affiliateUrl !== undefined) c.affiliateUrl = stored[c.id].affiliateUrl;
+        if (stored[c.id].affiliateButtonText !== undefined) c.affiliateButtonText = stored[c.id].affiliateButtonText;
+      }
+    });
+  } catch (_) {}
+}
+
+

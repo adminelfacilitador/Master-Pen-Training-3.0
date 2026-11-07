@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Feather, Award, Shield, Sparkles, CheckCircle2, Camera, Bot } from 'lucide-react';
+import { Feather, Award, Shield, Sparkles, CheckCircle2, Camera } from 'lucide-react';
 import { UserProfile } from '../types';
 import { BRANDING } from '../assets/branding';
 import { cloudState } from '../services/cloudState';
@@ -9,15 +9,13 @@ interface WelcomeCardProps {
   onExploreCourse: () => void;
   onTakeExam?: () => void;
   onOpenImageModal?: () => void;
-  onOpenAgentModal?: () => void;
 }
 
 export const WelcomeCard: React.FC<WelcomeCardProps> = ({
   currentUser,
   onExploreCourse,
   onTakeExam,
-  onOpenImageModal,
-  onOpenAgentModal
+  onOpenImageModal
 }) => {
   const [brandingImages, setBrandingImages] = useState(cloudState.getBrandingImages());
 
@@ -138,16 +136,6 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
               >
                 <span>Rendir Evaluación Activa</span>
                 <Sparkles className="w-4 h-4 text-[#d4af37]" />
-              </button>
-            )}
-
-            {onOpenAgentModal && (
-              <button
-                onClick={onOpenAgentModal}
-                className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#1c180e] to-[#2b220e] hover:from-[#2a2414] hover:to-[#3b2f15] text-[#f5e2a3] border border-[#d4af37]/70 font-semibold text-xs uppercase tracking-wider transition-all flex items-center space-x-2 shadow-[0_0_15px_rgba(212,175,55,0.25)]"
-              >
-                <Bot className="w-4 h-4 text-[#d4af37] animate-pulse" />
-                <span>Consultar al Mentor (Voz & IA)</span>
               </button>
             )}
           </div>

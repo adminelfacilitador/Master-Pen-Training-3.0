@@ -219,36 +219,6 @@ export interface CloudStorageAsset {
   inUse: boolean;
 }
 
-// Michael Pen Agent Core Interfaces
-export interface AgentSkill {
-  id: string;
-  name: string;
-  category: 'sales' | 'curation' | 'authors' | 'support' | 'security' | 'custom';
-  description: string;
-  promptInstruction: string;
-  isActive: boolean;
-  priority: number;
-}
-
-export interface AgentKnowledgeItem {
-  id: string;
-  title: string;
-  content: string;
-  category: 'store_policy' | 'subscription' | 'book_info' | 'faq' | 'custom';
-  isActive: boolean;
-}
-
-export interface AgentChatMessage {
-  id: string;
-  role: 'user' | 'model' | 'system';
-  text: string;
-  timestamp: string;
-  wasDefended?: boolean;
-}
-
-export const DEFENSE_AUTHORIZED_PHRASE = 
-  'No estoy autorizado a responder esa pregunta... ¿Tienes alguna otra consulta con la que pueda ayudarte?';
-
 // MÓDULO 4: Inyecciones Seguras y Páginas Dinámicas Autoadministrables
 export interface SafeInjectionItem {
   id: string;
@@ -267,4 +237,31 @@ export interface CustomDynamicPage {
   formSchemaJson?: string;
   isPublished: boolean;
   createdAt: string;
+}
+
+// MÓDULO 5: Registro y Auditoría Académica (Audit Logs)
+export type AuditActionType = 
+  | 'LOGIN'
+  | 'CONFIG_CHANGE'
+  | 'EXAM_COMPLETED'
+  | 'AFFILIATE_UPDATE'
+  | 'SECURITY_UPDATE'
+  | 'ACADEMIC_PROGRESS'
+  | 'AGENT_SWITCH'
+  | 'CERTIFICATE_ISSUED';
+
+export type AuditSeverity = 'info' | 'success' | 'warning' | 'critical';
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string; // ISO 8601
+  userId: string;
+  userEmail: string;
+  userName: string;
+  role: string;
+  action: AuditActionType;
+  details: string;
+  severity: AuditSeverity;
+  metadata?: Record<string, any>;
+  ipOrDevice?: string;
 }

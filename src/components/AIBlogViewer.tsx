@@ -10,9 +10,10 @@ import {
   Share2, 
   ChevronRight,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  ExternalLink
 } from 'lucide-react';
-import { AI_CHRONICLES, AIChronicle } from '../data/aiChronicles';
+import { AI_CHRONICLES, AIChronicle, getResolvedAIChronicles } from '../data/aiChronicles';
 
 interface AIBlogViewerProps {
   aiId: string;
@@ -21,7 +22,8 @@ interface AIBlogViewerProps {
 }
 
 export const AIBlogViewer: React.FC<AIBlogViewerProps> = ({ aiId, onBack, onSelectOtherAI }) => {
-  const chronicle = AI_CHRONICLES.find((a) => a.id === aiId) || AI_CHRONICLES[0];
+  const allChronicles = getResolvedAIChronicles();
+  const chronicle = allChronicles.find((a) => a.id === aiId) || allChronicles[0];
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -75,13 +77,13 @@ export const AIBlogViewer: React.FC<AIBlogViewerProps> = ({ aiId, onBack, onSele
             <div className="flex items-end space-x-5">
               {/* Profile Avatar with its own custom border */}
               <div 
-                className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-2xl overflow-hidden border-4 bg-black shadow-2xl flex items-center justify-center p-1 shrink-0 transition-transform duration-300 hover:scale-105"
+                className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-2xl overflow-hidden border-4 bg-black shadow-2xl flex items-center justify-center p-2 shrink-0 transition-transform duration-300 hover:scale-105"
                 style={{ borderColor: '#d4af37', boxShadow: '0 0 30px rgba(212, 175, 55, 0.45)' }}
               >
                 <img
                   src={chronicle.logoImage}
                   alt={`Logotipo oficial de ${chronicle.name}`}
-                  className="w-full h-full object-cover rounded-xl"
+                  className="w-full h-full object-contain"
                 />
               </div>
 
@@ -107,9 +109,21 @@ export const AIBlogViewer: React.FC<AIBlogViewerProps> = ({ aiId, onBack, onSele
               </div>
             </div>
 
-            {/* Quick Share / Info Badge */}
-            <div className="pb-2 flex items-center space-x-3">
-              <span className="text-xs font-mono text-zinc-400 bg-black/60 px-3 py-1.5 rounded-lg border border-zinc-800">
+            {/* Quick Share & Affiliate Link Button */}
+            <div className="pb-2 flex flex-wrap items-center gap-2.5">
+              {chronicle.affiliateUrl && (
+                <a
+                  href={chronicle.affiliateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#c5a059] to-[#856524] text-black font-bold text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:shadow-[0_0_30px_rgba(212,175,55,0.6)] hover:scale-105 transition cursor-pointer"
+                  title={`Abrir ${chronicle.name} con enlace de afiliado`}
+                >
+                  <ExternalLink className="w-4 h-4 text-black" />
+                  <span>{chronicle.affiliateButtonText || `Probar ${chronicle.shortName}`}</span>
+                </a>
+              )}
+              <span className="text-xs font-mono text-zinc-400 bg-black/60 px-3 py-2 rounded-lg border border-zinc-800">
                 Crónica Monográfica
               </span>
             </div>

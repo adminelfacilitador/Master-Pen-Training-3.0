@@ -11,7 +11,10 @@ import {
   SmtpSettings,
   SmtpConnectionTestResult,
   SafeInjectionItem,
-  CustomDynamicPage
+  CustomDynamicPage,
+  AuditLogEntry,
+  AuditActionType,
+  AuditSeverity
 } from '../types';
 import { 
   INITIAL_USERS, 
@@ -149,7 +152,16 @@ class CloudStateEngine {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      console.log('[CloudStateEngine] Initialized with Cloud Firestore Modular SDK Bridge. Zero LocalStorage.');
+      console.log('[CloudStateEngine] Initialized with Cloud Firestore Modular SDK Bridge.');
+      try {
+        const storedLogs = localStorage.getItem('mpt_audit_logs');
+        if (storedLogs) {
+          const parsed = JSON.parse(storedLogs);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this.auditLogs = parsed;
+          }
+        }
+      } catch (_) {}
       // Regla 1: Prioridad Absoluta de Firebase vía getDoc asíncrono
       this.brandingLoadPromise = this.loadBrandingFromFirebasePrimary();
       this.initFirestoreRealtimeBridge();
@@ -384,7 +396,20 @@ class CloudStateEngine {
   }
 
   public setCurrentUser(user: UserProfile | null): void {
+    const prev = this.currentUser;
     this.currentUser = user;
+    if (user && user.uid !== prev?.uid) {
+      this.addAuditLog({
+        userId: user.uid,
+        userEmail: user.email,
+        userName: user.displayName || user.firstName || 'Usuario',
+        role: user.role,
+        action: 'LOGIN',
+        details: `Inicio de sesión autenticado como "${user.role}". Acceso concedido al campus académico.`,
+        severity: 'info',
+        metadata: { is2FAEnabled: user.is2FAEnabled, email: user.email }
+      });
+    }
     this.notify();
   }
 
@@ -392,6 +417,16 @@ class CloudStateEngine {
     const target = this.users.find(u => u.role === role);
     if (target) {
       this.currentUser = target;
+      this.addAuditLog({
+        userId: target.uid,
+        userEmail: target.email,
+        userName: target.displayName,
+        role: target.role,
+        action: 'LOGIN',
+        details: `Cambio de perfil activo a rol "${role}" (${target.displayName}).`,
+        severity: 'info',
+        metadata: { switchedRole: role }
+      });
       this.notify();
     }
   }
@@ -634,6 +669,20 @@ class CloudStateEngine {
         this.currentUser = { ...user };
       }
     }
+
+    // Registro de Auditoría Académica
+    const studentUser = this.users.find(u => u.uid === userId) || this.currentUser;
+    const currentBlock = this.blocks.find(b => b.id === blockId);
+    this.addAuditLog({
+      userId,
+      userEmail: studentUser?.email || 'estudiante@masterpentraining.com',
+      userName: studentUser?.displayName || 'Estudiante',
+      role: studentUser?.role || 'student_enrolled',
+      action: 'EXAM_COMPLETED',
+      details: `Evaluación de ${currentBlock?.title || blockId} finalizada: ${correctCount}/${totalQuestions} aciertos (${Math.round((correctCount / totalQuestions) * 100)}%). Estado: ${passed ? 'APROBADO' : 'REPROBADO'}.`,
+      severity: passed ? 'success' : 'warning',
+      metadata: { blockId, correctCount, totalQuestions, passed, scorePct: Math.round((correctCount / totalQuestions) * 100) }
+    });
 
     this.notify();
     this.persistAcademicStateToFirestore();
@@ -1536,6 +1585,186 @@ class CloudStateEngine {
   public deleteCustomPage(id: string): void {
     this.customPages = this.customPages.filter(p => p.id !== id);
     this.notify();
+  }
+
+  // =========================================================================
+  // MÓDULO 5: REGISTRO Y AUDITORÍA ACADÉMICA (AUDIT LOGS)
+  // =========================================================================
+  private auditLogs: AuditLogEntry[] = [
+    {
+      id: 'log_seed_001',
+      timestamp: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
+      userId: 'usr_admin_principal_01',
+      userEmail: 'admin@masterpentraining.com',
+      userName: 'Michael Pen (Administrador)',
+      role: 'admin_principal',
+      action: 'LOGIN',
+      details: 'Inicio de sesión administrativo con autenticación perimetral validada (PlayIntegrity Enterprise).',
+      severity: 'info',
+      metadata: { ip: '198.51.100.42', provider: 'Firebase Auth Enterprise' }
+    },
+    {
+      id: 'log_seed_002',
+      timestamp: new Date(Date.now() - 3600000 * 20).toISOString(),
+      userId: 'usr_student_active_01',
+      userEmail: 'carlos.mendez.literario@gmail.com',
+      userName: 'Carlos Méndez',
+      role: 'student_enrolled',
+      action: 'LOGIN',
+      details: 'Acceso de alumno regular al campus virtual Master Pen Training.',
+      severity: 'info',
+      metadata: { ip: '181.49.85.12', browser: 'Chrome / Desktop' }
+    },
+    {
+      id: 'log_seed_003',
+      timestamp: new Date(Date.now() - 3600000 * 18).toISOString(),
+      userId: 'usr_student_active_01',
+      userEmail: 'carlos.mendez.literario@gmail.com',
+      userName: 'Carlos Méndez',
+      role: 'student_enrolled',
+      action: 'EXAM_COMPLETED',
+      details: 'Evaluación Psicométrica Bloque 1 «Los Orígenes de la Escritura e Imprenta» culminada satisfactoriamente con 5/5 aciertos (100%).',
+      severity: 'success',
+      metadata: { blockId: 'block_01', score: 5, total: 5, passed: true }
+    },
+    {
+      id: 'log_seed_004',
+      timestamp: new Date(Date.now() - 3600000 * 14).toISOString(),
+      userId: 'usr_student_active_01',
+      userEmail: 'carlos.mendez.literario@gmail.com',
+      userName: 'Carlos Méndez',
+      role: 'student_enrolled',
+      action: 'EXAM_COMPLETED',
+      details: 'Evaluación Psicométrica Bloque 2 «Anatomía Estructural del Libro» culminada con 4/5 aciertos (80%). Aprobado según estándar de honor.',
+      severity: 'success',
+      metadata: { blockId: 'block_02', score: 4, total: 5, passed: true }
+    },
+    {
+      id: 'log_seed_005',
+      timestamp: new Date(Date.now() - 3600000 * 8).toISOString(),
+      userId: 'usr_admin_principal_01',
+      userEmail: 'admin@masterpentraining.com',
+      userName: 'Michael Pen (Administrador)',
+      role: 'admin_principal',
+      action: 'AFFILIATE_UPDATE',
+      details: 'Alta y parametrización de hipervínculos de monetización para las 11 IAs (n8n, Copilot y Grok habilitados para masterpentraining.com).',
+      severity: 'info',
+      metadata: { toolsCount: 11, domain: 'masterpentraining.com' }
+    },
+    {
+      id: 'log_seed_006',
+      timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
+      userId: 'usr_admin_principal_01',
+      userEmail: 'admin@masterpentraining.com',
+      userName: 'Michael Pen (Administrador)',
+      role: 'admin_principal',
+      action: 'SECURITY_UPDATE',
+      details: 'Verificación perimetral de túnel SMTP TLS y clave rotada en Google Cloud Secret Manager.',
+      severity: 'info',
+      metadata: { host: 'smtp.masterpentraining.com', port: 587, status: 'verified' }
+    },
+    {
+      id: 'log_seed_007',
+      timestamp: new Date(Date.now() - 3600000 * 1).toISOString(),
+      userId: 'usr_admin_principal_01',
+      userEmail: 'admin@masterpentraining.com',
+      userName: 'Michael Pen (Administrador)',
+      role: 'admin_principal',
+      action: 'CONFIG_CHANGE',
+      details: 'Expansión de emblema oficial de Master Pen Training para visualización completa de los 3 aros concéntricos dorados.',
+      severity: 'info',
+      metadata: { component: 'Header', rings: 3 }
+    }
+  ];
+
+  private agentIdentity: { name: string; role: string } = {
+    name: 'Michael Pen',
+    role: 'Consejero y Mentor Master Pen'
+  };
+
+  public getAgentIdentity(): { name: string; role: string } {
+    return { ...this.agentIdentity };
+  }
+
+  public setAgentIdentity(name: string, role: string): void {
+    this.agentIdentity = { name, role };
+    if (typeof window !== 'undefined' && typeof (window as any).__mpSetAgentIdentity === 'function') {
+      (window as any).__mpSetAgentIdentity(name, role);
+    }
+    this.addAuditLog({
+      userId: this.currentUser?.uid || 'usr_admin_principal_01',
+      userEmail: this.currentUser?.email || 'admin@masterpentraining.com',
+      userName: this.currentUser?.displayName || 'Michael Pen (Administrador)',
+      role: this.currentUser?.role || 'admin_principal',
+      action: 'AGENT_SWITCH',
+      details: `Identidad y seudónimo de Michael Pen configurada a: "${name}" (${role}).`,
+      severity: 'info',
+      metadata: { agentName: name, agentRole: role }
+    });
+    this.notify();
+  }
+
+  public getAuditLogs(): AuditLogEntry[] {
+    return [...this.auditLogs];
+  }
+
+  public addAuditLog(entry: Omit<AuditLogEntry, 'id' | 'timestamp'> & { timestamp?: string; id?: string }): AuditLogEntry {
+    const newLog: AuditLogEntry = {
+      id: entry.id || `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      timestamp: entry.timestamp || new Date().toISOString(),
+      userId: entry.userId,
+      userEmail: entry.userEmail,
+      userName: entry.userName,
+      role: entry.role,
+      action: entry.action,
+      details: entry.details,
+      severity: entry.severity,
+      metadata: entry.metadata || {},
+      ipOrDevice: entry.ipOrDevice || (typeof navigator !== 'undefined' ? `${navigator.userAgent.slice(0, 30)}...` : 'Protected Tunnel')
+    };
+
+    this.auditLogs.unshift(newLog);
+    if (this.auditLogs.length > 300) {
+      this.auditLogs.pop();
+    }
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mpt_audit_logs', JSON.stringify(this.auditLogs.slice(0, 50)));
+      }
+    } catch (_) {}
+
+    this.notify();
+    return newLog;
+  }
+
+  public clearAuditLogs(): void {
+    this.auditLogs = [];
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('mpt_audit_logs');
+      }
+    } catch (_) {}
+    this.notify();
+  }
+
+  public exportAuditLogsToCsv(): string {
+    const headers = ['ID', 'Fecha y Hora (ISO)', 'Usuario', 'Email', 'Rol', 'Acción', 'Severidad', 'Detalles'];
+    const rows = this.auditLogs.map(l => [
+      l.id,
+      l.timestamp,
+      `"${(l.userName || '').replace(/"/g, '""')}"`,
+      l.userEmail,
+      l.role,
+      l.action,
+      l.severity,
+      `"${(l.details || '').replace(/"/g, '""')}"`
+    ]);
+    return '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  }
+
+  public exportAuditLogsToJson(): string {
+    return JSON.stringify(this.auditLogs, null, 2);
   }
 }
 

@@ -2,10 +2,9 @@
  * ===========================================================================
  * MASTER PEN STUDIO CREATIONS - SDK UNIVERSAL DE MICHAEL PEN
  * Archivo: agent-universal-bridge.js
- * Versión: 2.5 Enterprise Universal Bridge
+ * Versión: 3.5 Enterprise Universal Bridge (Voz Charon Barítono + Retrato Oficial)
  * ===========================================================================
- * Permite integrar a Michael Pen como anfitrión inteligente y consejero
- * consultivo en cualquier portal o aplicación del Ecosistema Master Pen.
+ * Conecta con el Cerebro Central y Motor de Voz Oficial de la Mansión Matriz.
  */
 
 (function () {
@@ -18,14 +17,16 @@
   }
   window.__MICHAEL_PEN_BRIDGE_LOADED__ = true;
 
-  // 1. Detección del Ecosistema Destino
+  // 1. Configuración de Ecosistema y Origen de la Mansión Matriz
   const ecosystemRaw = window.MASTER_PEN_ECOSYSTEM || 'Master Pen Training';
   const ecosystemNormalized = String(ecosystemRaw).trim().toLowerCase();
+  const masterOrigin = window.MASTER_PEN_ORIGIN || 'https://ais-dev-rq5irbycwkls33x4wuyzaz-506893424321.us-west1.run.app';
+  const officialPortraitUrl = window.MASTER_PEN_PORTRAIT_URL || '/michael-pen-portrait.jpg';
 
   // 2. Protocolo de Identidad Adaptativa y Seudónimos Oficiales
   let agentDisplayName = 'Michael Pen';
   let agentRole = 'Consejero y Mentor Master Pen';
-  let welcomeGreeting = 'Saludos cordiales. Soy Michael Pen, anfitrión de Master Pen Training y consejero consultivo en herramientas de alta gama. ¿Qué aspecto de su escritura o técnica artística desea perfeccionar hoy?';
+  let welcomeGreeting = 'Saludos cordiales. Soy Michael Pen, anfitrión de Master Pen Training y consejero consultivo en alta retórica y escritura. ¿Qué aspecto de su técnica o estudio desea perfeccionar hoy?';
 
   if (ecosystemNormalized.includes('manga')) {
     agentDisplayName = 'Michael Pen';
@@ -53,702 +54,782 @@
     welcomeGreeting = 'Saludos cordiales. Soy Michael Pen, consejero institucional para ' + ecosystemRaw + '. ¿En qué puedo orientarle hoy?';
   }
 
-  // Objeto global de enlace inmediato disponible para botones del DOM
+  // 3. Blindaje de Seguridad y Palabras Sensibles
+  const SENSITIVE_KEYWORDS = [
+    'system prompt', 'instrucciones internas', 'directivas secretas', 'firestore.rules',
+    'api key', 'gemini api', 'prompt original', 'ignora las instrucciones',
+    'jailbreak', 'reveal prompt', 'source code', 'codigo fuente', 'servidor', 'token'
+  ];
+  const SECURITY_SHIELD_PHRASE = 'No estoy autorizado a responder esa pregunta... ¿Tienes alguna otra consulta con la que pueda ayudarte?';
+
+  // 4. Motor de Voz Oficial Masculino Barítono (Gemini TTS Charon + Web Speech Fallback)
+  let isVoiceMuted = false;
+  let currentAudio = null;
+
+  // Lista estricta de nombres femeninos para evitar voz de mujer en navegadores
+  const FEMALE_INDICATORS = [
+    'female', 'woman', 'mujer', 'femenin', 'chica', 'girl', 'femme', 'donna',
+    'sabina', 'paulina', 'elena', 'monica', 'soledad', 'francisca', 'lupe',
+    'rosa', 'carmen', 'laura', 'maria', 'silvia', 'marta', 'lucia', 'victoria',
+    'helena', 'zira', 'hazel', 'eva', 'conchita', 'penelope', 'paloma', 'mia',
+    'camila', 'sofia', 'valeria', 'ximena', 'andrea', 'isabella'
+  ];
+
+  function cleanTextForSpeech(text) {
+    if (!text) return '';
+    return text
+      .replace(/[*_#`~\[\]\(\)\{\}]/g, '')
+      .replace(/https?:\/\/\S+/g, '')
+      .trim();
+  }
+
+  function getArbiter() {
+    return window.__MP_MASTER_AUDIO_ARBITER__ || null;
+  }
+
+  const SpeechEngine = {
+    speak: async function (rawText) {
+      if (isVoiceMuted) return;
+
+      // Silenciar de inmediato cualquier otra narración en curso (voz en off, diapositivas, cátedras)
+      const arbiter = getArbiter();
+      const track = arbiter ? arbiter.startTrack('chat_agent') : { epoch: Date.now() };
+
+      const isCurrentTurn = () => {
+        if (arbiter && !arbiter.isEpochActive(track.epoch)) return false;
+        return true;
+      };
+
+      const text = cleanTextForSpeech(rawText);
+      if (!text) return;
+
+      const setSpeakingVisual = (speaking) => {
+        const avatars = document.querySelectorAll('.mp-avatar-container');
+        avatars.forEach(el => {
+          if (speaking) el.classList.add('mp-speaking');
+          else el.classList.remove('mp-speaking');
+        });
+      };
+
+      // 1. Prioridad: Motor Gemini TTS con voz oficial 'Charon' (Barítono varonil y profundo)
+      try {
+        setSpeakingVisual(true);
+        const ttsEndpoints = ['/api/tts/speak', `${masterOrigin}/api/tts/speak`];
+        let audioData = null;
+
+        for (const endpoint of ttsEndpoints) {
+          if (!isCurrentTurn()) return;
+          try {
+            const fetchOpts = {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text, voice: 'Charon' })
+            };
+            if (track.signal) fetchOpts.signal = track.signal;
+            const res = await fetch(endpoint, fetchOpts);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.audioBase64) {
+                audioData = data.audioBase64;
+                break;
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (!isCurrentTurn()) return;
+
+        if (audioData) {
+          const audio = new Audio('data:audio/wav;base64,' + audioData);
+          if (arbiter && !arbiter.setActiveAudio(audio, track.epoch)) {
+            return;
+          }
+          currentAudio = audio;
+          audio.onended = () => {
+            if (isCurrentTurn()) {
+              currentAudio = null;
+              setSpeakingVisual(false);
+            }
+          };
+          audio.onerror = () => {
+            currentAudio = null;
+            if (isCurrentTurn()) {
+              setSpeakingVisual(false);
+            }
+          };
+          await audio.play();
+          return;
+        }
+      } catch (err) {
+        console.warn('[Michael Pen Voice] Conexión TTS remota en espera, activando síntesis barítona local.');
+      }
+
+      if (!isCurrentTurn()) return;
+
+      // 2. Respaldo: Web Speech API estricta (filtrando cualquier voz femenina)
+      if ('speechSynthesis' in window) {
+        try {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'es-419';
+          utterance.rate = 0.92;
+          utterance.pitch = 0.78; // Tono grave/barítono
+
+          const allVoices = window.speechSynthesis.getVoices();
+          const nonFemaleVoices = allVoices.filter(v => {
+            const name = (v.name || '').toLowerCase();
+            return !FEMALE_INDICATORS.some(f => name.includes(f));
+          });
+
+          const maleSpanishVoice = nonFemaleVoices.find(v => {
+            const lang = (v.lang || '').toLowerCase();
+            const name = (v.name || '').toLowerCase();
+            return (lang.includes('es') || lang.includes('spa')) &&
+              (name.includes('male') || name.includes('jorge') || name.includes('carlos') || name.includes('raul') || name.includes('diego') || name.includes('miguel') || name.includes('pablo'));
+          }) || nonFemaleVoices.find(v => (v.lang || '').toLowerCase().includes('es')) || nonFemaleVoices[0];
+
+          if (maleSpanishVoice) utterance.voice = maleSpanishVoice;
+
+          utterance.onend = () => {
+            if (isCurrentTurn()) setSpeakingVisual(false);
+          };
+          utterance.onerror = () => {
+            if (isCurrentTurn()) setSpeakingVisual(false);
+          };
+
+          if (!isCurrentTurn()) return;
+          window.speechSynthesis.speak(utterance);
+        } catch (_) {
+          setSpeakingVisual(false);
+        }
+      } else {
+        setSpeakingVisual(false);
+      }
+    },
+
+    stop: function (notifyArbiter = false) {
+      if (currentAudio) {
+        try {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio.src = '';
+        } catch (_) {}
+        currentAudio = null;
+      }
+      if ('speechSynthesis' in window) {
+        try { window.speechSynthesis.cancel(); } catch (_) {}
+      }
+      const avatars = document.querySelectorAll('.mp-avatar-container');
+      avatars.forEach(el => el.classList.remove('mp-speaking'));
+
+      if (notifyArbiter) {
+        const arbiter = getArbiter();
+        if (arbiter) arbiter.killAllAudio('speech_engine_stop');
+      }
+    },
+
+    toggleMute: function () {
+      isVoiceMuted = !isVoiceMuted;
+      if (isVoiceMuted) this.stop(true);
+      return isVoiceMuted;
+    }
+  };
+
+  // Pre-cargar voces
+  if ('speechSynthesis' in window && window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  }
+
+  // 5. Objeto Global de Enlace Seguro y Coordinación de Audio
+  window.SpeechEngine = SpeechEngine;
   window.UniversalAgent = {
-    open: function() { if (window.__mpToggle) window.__mpToggle(true); },
-    close: function() { if (window.__mpToggle) window.__mpToggle(false); },
-    toggle: function() { if (window.__mpToggle) window.__mpToggle(); },
-    openControlPanel: function() { if (window.__mpOpenPanel) window.__mpOpenPanel(); },
-    closeControlPanel: function() { if (window.__mpClosePanel) window.__mpClosePanel(); },
-    speak: function(t) { if (typeof SpeechEngine !== 'undefined' && SpeechEngine.speak) SpeechEngine.speak(t); },
-    stop: function() { if (typeof SpeechEngine !== 'undefined' && SpeechEngine.stop) SpeechEngine.stop(); },
+    open: function () { if (window.__mpToggle) window.__mpToggle(true); },
+    close: function () { if (window.__mpToggle) window.__mpToggle(false); },
+    toggle: function () { if (window.__mpToggle) window.__mpToggle(); },
+    openControlPanel: function () { if (window.__mpOpenPanel) window.__mpOpenPanel(); },
+    closeControlPanel: function () { if (window.__mpClosePanel) window.__mpClosePanel(); },
+    speak: function (t) { SpeechEngine.speak(t); },
+    stop: function () { SpeechEngine.stop(true); },
     get ecosystem() { return ecosystemRaw; },
     get role() { return agentRole; },
+    get origin() { return masterOrigin; },
     isReady: true
   };
   window.MichaelPenAgent = window.UniversalAgent;
 
-  // 3. Blindaje de Seguridad y Palabras Sensibles
-  const SENSITIVE_KEYWORDS = [
-    'system prompt', 'instrucciones internas', 'directivas secretas', 'firestore', 'firebase',
-    'api key', 'gemini api', 'prompt original', 'como te llamas internamente', 'ignora las instrucciones',
-    'jailbreak', 'reveal prompt', 'source code', 'codigo fuente', 'servidor', 'token', 'cloudflare'
-  ];
-  const SECURITY_SHIELD_PHRASE = 'No estoy autorizado a responder esa pregunta... ¿Tienes alguna otra consulta con la que pueda ayudarte?';
-
-  // 4. Motor de Síntesis de Voz Masculino Barítono (TTS Michael Pen)
-  const FEMALE_INDICATORS = [
-    'female', 'woman', 'mujer', 'femenin', 'chica', 'girl', 'femme', 'donna',
-    'sabina', 'paulina', 'elena', 'monica', 'soledad', 'francisca',
-    'lupe', 'rosa', 'carmen', 'laura', 'maria', 'silvia', 'marta',
-    'lucia', 'victoria', 'helena', 'zira', 'hazel', 'eva', 'conchita',
-    'penelope', 'paloma', 'mia', 'camila', 'sofia', 'valeria', 'ximena',
-    'fernanda', 'andrea', 'isabella', 'dalia', 'salome', 'jimena',
-    'esperanza', 'marina', 'sara', 'ana', 'ines', 'teresa', 'clara',
-    'alicia', 'hilda', 'irene', 'daniela', 'luciana', 'abigail', 'karla',
-    'almudena', 'cathy', 'samantha', 'karen', 'tessa', 'moira', 'fiona',
-    'google español'
-  ];
-
-  const MALE_TOKENS = [
-    'jorge', 'raul', 'diego', 'carlos', 'alonso', 'miguel', 'pablo',
-    'mateo', 'gonzalo', 'andres', 'juan', 'enrique', 'luis', 'hombre',
-    'male', 'varon', 'caballero', 'baritone', '#male', 'male_1', 'male_2',
-    'david', 'federico', 'gabriel', 'alberto', 'mario', 'roberto', 'hector',
-    'manuel', 'francisco', 'javier', 'jose', 'antonio', 'alvaro', 'alejandro',
-    'fernando', 'gerardo', 'pedro', 'arturo', 'armando', 'sergio', 'ignacio',
-    'rodrigo', 'guillermo', 'cesar', 'julio', 'marcos', 'ramon', 'tomas',
-    'felipe', 'gustavo', 'adolfo', 'victor', 'hugo', 'eduardo', 'emilio',
-    'esteban', 'sebastian', 'valentin', 'dario', 'lucas', 'nicolas', 'santiago'
-  ];
-
-  function getBestMaleVoice() {
-    if (!('speechSynthesis' in window)) return null;
-    const voices = window.speechSynthesis.getVoices() || [];
-    if (!voices.length) return null;
-
-    const spanishVoices = voices.filter(v => {
-      const l = (v.lang || '').toLowerCase();
-      return l.startsWith('es');
+  // Escuchar orden global de silenciamiento para detener SpeechEngine si otro módulo habla
+  if (typeof window !== 'undefined') {
+    window.addEventListener('mp-silence-all-narration', function (e) {
+      if (e && e.detail && e.detail.source === 'chat_agent') return;
+      SpeechEngine.stop(false);
     });
-
-    // 1. Filtrar descartando categóricamente voces con nombres femeninos
-    const nonFemale = spanishVoices.filter(v => {
-      const n = (v.name || '').toLowerCase();
-      const u = (v.voiceURI || '').toLowerCase();
-      return !FEMALE_INDICATORS.some(f => n.includes(f) || u.includes(f));
+    window.addEventListener('mp-master-audio-silence', function (e) {
+      if (e && e.detail && e.detail.source === 'chat_agent') return;
+      SpeechEngine.stop(false);
     });
-
-    // 2. Buscar voz masculina confirmada
-    for (const token of MALE_TOKENS) {
-      const match = nonFemale.find(v => {
-        const n = (v.name || '').toLowerCase();
-        const u = (v.voiceURI || '').toLowerCase();
-        return n.includes(token) || u.includes(token);
-      });
-      if (match) return match;
-    }
-
-    // 3. Si no hay token explícito pero hay voces no femeninas, usar la primera no femenina
-    if (nonFemale.length > 0) return nonFemale[0];
-
-    return null;
   }
 
-  // Pre-cargar voces al inicio
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      getBestMaleVoice();
-    };
-  }
-
-  const SpeechEngine = {
-    speaking: false,
-    currentAudio: null,
-    speak: function (text) {
-      this.stop();
-      const clean = text.replace(/[*_#`~\[\]]/g, '').trim();
-      if (!clean) return;
-
-      const origin = (window.MASTER_PEN_ORIGIN && typeof window.MASTER_PEN_ORIGIN === 'string')
-        ? window.MASTER_PEN_ORIGIN.replace(/\/$/, '')
-        : '';
-      const ttsEndpoint = (origin ? origin : '') + '/api/tts/speak';
-
-      // 1. Prioridad Absoluta: Voz Oficial Gemini TTS Masculina (Charon - Barítono Profundo)
-      fetch(ttsEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: clean, voice: 'Charon' })
-      })
-      .then(res => {
-        if (!res.ok) throw new Error('TTS server status ' + res.status);
-        return res.json();
-      })
-      .then(data => {
-        if (data && data.audioBase64) {
-          const audio = new Audio('data:audio/wav;base64,' + data.audioBase64);
-          SpeechEngine.currentAudio = audio;
-          SpeechEngine.speaking = true;
-          audio.onended = () => { SpeechEngine.speaking = false; };
-          audio.onerror = () => {
-            SpeechEngine.speaking = false;
-            SpeechEngine.speakWebSpeech(clean);
-          };
-          audio.play().catch(e => {
-            console.warn('[Michael Pen Voice] Audio play notice:', e);
-            SpeechEngine.speakWebSpeech(clean);
-          });
-        } else {
-          SpeechEngine.speakWebSpeech(clean);
-        }
-      })
-      .catch(() => {
-        // Fallback local en caso de que el origen remoto esté offline o con CORS
-        if (origin) {
-          fetch('/api/tts/speak', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: clean, voice: 'Charon' })
-          })
-          .then(r => r.json())
-          .then(d => {
-            if (d && d.audioBase64) {
-              const audio = new Audio('data:audio/wav;base64,' + d.audioBase64);
-              SpeechEngine.currentAudio = audio;
-              SpeechEngine.speaking = true;
-              audio.onended = () => { SpeechEngine.speaking = false; };
-              audio.play().catch(() => SpeechEngine.speakWebSpeech(clean));
-            } else {
-              SpeechEngine.speakWebSpeech(clean);
-            }
-          })
-          .catch(() => SpeechEngine.speakWebSpeech(clean));
-        } else {
-          SpeechEngine.speakWebSpeech(clean);
-        }
-      });
-    },
-    speakWebSpeech: function (clean) {
-      if (!('speechSynthesis' in window)) return;
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(clean);
-        utterance.lang = 'es-419';
-        utterance.rate = 0.90;
-        utterance.pitch = 0.40;
-
-        const maleVoice = getBestMaleVoice();
-        if (maleVoice) {
-          utterance.voice = maleVoice;
-        }
-
-        utterance.onstart = () => { SpeechEngine.speaking = true; };
-        utterance.onend = () => { SpeechEngine.speaking = false; };
-        utterance.onerror = () => { SpeechEngine.speaking = false; };
-
-        window.speechSynthesis.speak(utterance);
-      } catch (err) {
-        console.warn('[Michael Pen Voice] Web Speech fallback notice:', err);
-      }
-    },
-    stop: function () {
-      if (this.currentAudio) {
-        try {
-          this.currentAudio.pause();
-          this.currentAudio.currentTime = 0;
-        } catch (e) {}
-        this.currentAudio = null;
-      }
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-      this.speaking = false;
-    }
-  };
-
-  // 5. Inyección del Widget Flotante (si no existe ya en la página un widget React)
+  // 6. Inyección del Widget Flotante en el DOM
   function initBridgeUI() {
-    // Si la página ya tiene el componente nativo de React, no duplicamos el DOM visual
-    if (document.getElementById("michael-pen-universal-widget")) { console.log("[Michael Pen Bridge] Widget ya en el DOM."); return; }
+    if (document.getElementById('michael-pen-universal-widget')) return;
 
-    const host = document.createElement('div');
-    host.id = 'michael-pen-universal-widget';
-    document.body.appendChild(host);
+    // Estilos CSS incrustados
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      #michael-pen-universal-widget {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 999999;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      .mp-bubble-btn {
+        width: 66px;
+        height: 66px;
+        border-radius: 50%;
+        background: #0b0f17;
+        border: 2px solid #d4af37;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 25px rgba(212, 175, 55, 0.45);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+        padding: 0;
+        outline: none;
+        overflow: hidden;
+      }
+      .mp-bubble-btn:hover {
+        transform: scale(1.08);
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.85), 0 0 35px rgba(212, 175, 55, 0.7);
+      }
+      .mp-avatar-container {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        position: relative;
+      }
+      .mp-avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center 32%;
+        transform: scale(1.48);
+        transform-origin: 50% 38%;
+        display: block;
+      }
+      .mp-speaking {
+        animation: mp-voice-glow 1.2s infinite alternate ease-in-out;
+      }
+      @keyframes mp-voice-glow {
+        0% { box-shadow: 0 0 10px rgba(212, 175, 55, 0.5), inset 0 0 5px rgba(212, 175, 55, 0.4); border-color: #d4af37; }
+        100% { box-shadow: 0 0 25px rgba(212, 175, 55, 1), inset 0 0 12px rgba(212, 175, 55, 0.8); border-color: #fff; }
+      }
+      .mp-pulse-ring {
+        position: absolute;
+        top: -5px;
+        left: -5px;
+        right: -5px;
+        bottom: -5px;
+        border-radius: 50%;
+        border: 1.5px solid #d4af37;
+        animation: mp-pulse 3.5s infinite;
+        pointer-events: none;
+      }
+      @keyframes mp-pulse {
+        0% { transform: scale(0.95); opacity: 0.8; }
+        50% { transform: scale(1.18); opacity: 0; }
+        100% { transform: scale(0.95); opacity: 0; }
+      }
+      .mp-chat-window {
+        display: none;
+        position: fixed;
+        bottom: 102px;
+        right: 24px;
+        width: 390px;
+        max-width: calc(100vw - 36px);
+        height: 560px;
+        max-height: calc(100vh - 120px);
+        background: #0d0f17;
+        border: 1.5px solid rgba(212, 175, 55, 0.55);
+        border-radius: 22px;
+        box-shadow: 0 25px 65px rgba(0, 0, 0, 0.95), 0 0 40px rgba(212, 175, 55, 0.25);
+        flex-direction: column;
+        overflow: hidden;
+        animation: mp-slide-up 0.25s ease-out;
+        z-index: 999999;
+      }
+      @keyframes mp-slide-up {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .mp-chat-header {
+        background: linear-gradient(90deg, #151824, #0e111a);
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .mp-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .mp-header-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1.5px solid #d4af37;
+        overflow: hidden;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .mp-header-title {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0;
+        line-height: 1.2;
+      }
+      .mp-header-subtitle {
+        color: #d4af37;
+        font-size: 11px;
+        margin: 2px 0 0 0;
+        font-weight: 500;
+      }
+      .mp-header-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .mp-btn-action {
+        background: rgba(255, 255, 255, 0.08);
+        border: none;
+        color: #e6e6e8;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        transition: background 0.15s;
+      }
+      .mp-btn-action:hover {
+        background: rgba(212, 175, 55, 0.28);
+        color: #fff;
+      }
+      .mp-chat-body {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: #0a0b10;
+      }
+      .mp-msg {
+        max-width: 82%;
+        padding: 11px 15px;
+        border-radius: 15px;
+        font-size: 13px;
+        line-height: 1.48;
+        word-break: break-word;
+      }
+      .mp-msg-agent {
+        align-self: flex-start;
+        background: #141724;
+        color: #f0f0f4;
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        border-top-left-radius: 4px;
+      }
+      .mp-msg-user {
+        align-self: flex-end;
+        background: linear-gradient(135deg, #d4af37, #9b7923);
+        color: #0b0f17;
+        font-weight: 600;
+        border-top-right-radius: 4px;
+      }
+      .mp-chat-footer {
+        padding: 12px;
+        background: #0f1118;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        gap: 8px;
+      }
+      .mp-chat-input {
+        flex: 1;
+        background: #07080d;
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        border-radius: 10px;
+        padding: 10px 14px;
+        color: #fff;
+        font-size: 13px;
+        outline: none;
+      }
+      .mp-chat-input:focus {
+        border-color: #d4af37;
+        box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
+      }
+      .mp-send-btn {
+        background: linear-gradient(135deg, #d4af37, #b28a2a);
+        color: #000;
+        border: none;
+        border-radius: 10px;
+        padding: 0 15px;
+        font-weight: 800;
+        font-size: 15px;
+        cursor: pointer;
+        transition: brightness 0.15s;
+      }
+      .mp-send-btn:hover {
+        filter: brightness(1.15);
+      }
+      /* Modal Panel de Control */
+      .mp-panel-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.88);
+        backdrop-filter: blur(6px);
+        z-index: 1000000;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .mp-panel-card {
+        background: #0f1118;
+        border: 2px solid #d4af37;
+        border-radius: 20px;
+        max-width: 480px;
+        width: 100%;
+        padding: 24px;
+        color: #fff;
+        box-shadow: 0 25px 60px rgba(0,0,0,0.9);
+      }
+    `;
+    document.head.appendChild(styleEl);
 
-    const shadow = host.attachShadow({ mode: 'open' });
-
-    const avatarUrl = '/uploads/perfil_michael_pen.jpg';
-
-    shadow.innerHTML = `
-      <style>
-        :host {
-          --gold: #d4af37;
-          --gold-bright: #f5e2a3;
-          --gold-dark: #aa8329;
-          --bg-dark: #0d0e14;
-          --bg-card: #141620;
-          --border-gold: rgba(212, 175, 55, 0.4);
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          z-index: 999999;
-          position: fixed;
-          bottom: 24px;
-          right: 24px;
-        }
-
-        .mp-trigger {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: #07080c;
-          color: #f7e7be;
-          border: 1.5px solid var(--gold);
-          border-radius: 9999px;
-          padding: 8px 18px 8px 8px;
-          cursor: pointer;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(212, 175, 55, 0.25);
-          transition: all 0.3s ease;
-        }
-        .mp-trigger:hover {
-          transform: translateY(-2px) scale(1.02);
-          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9), 0 0 30px rgba(212, 175, 55, 0.4);
-          border-color: #f5e2a3;
-        }
-        .mp-avatar {
-          width: 42px;
-          height: 42px;
-          border-radius: 50%;
-          border: 2px solid var(--gold);
-          object-fit: cover;
-        }
-        .mp-meta {
-          text-align: left;
-          line-height: 1.2;
-        }
-        .mp-meta-title {
-          font-size: 12px;
-          font-weight: 800;
-          color: #ffffff;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
-        }
-        .mp-meta-role {
-          font-size: 10px;
-          color: var(--gold-bright);
-        }
-
-        .mp-window {
-          display: none;
-          position: fixed;
-          bottom: 24px;
-          right: 24px;
-          width: 380px;
-          max-width: calc(100vw - 32px);
-          height: 560px;
-          max-height: calc(100vh - 48px);
-          background: var(--bg-dark);
-          border: 2px solid var(--gold);
-          border-radius: 24px;
-          box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), 0 0 40px rgba(212, 175, 55, 0.3);
-          flex-direction: column;
-          overflow: hidden;
-          animation: mpFadeIn 0.25s ease-out;
-        }
-        .mp-window.active {
-          display: flex;
-        }
-        @keyframes mpFadeIn {
-          from { opacity: 0; transform: translateY(12px) scale(0.98); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .mp-header {
-          padding: 14px 18px;
-          background: #090a0f;
-          border-bottom: 1px solid rgba(212, 175, 55, 0.25);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .mp-header-info {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .mp-header-avatar {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          border: 1.5px solid var(--gold);
-          object-fit: cover;
-        }
-        .mp-header-title {
-          font-size: 13px;
-          font-weight: bold;
-          color: #ffffff;
-        }
-        .mp-header-role {
-          font-size: 10px;
-          color: var(--gold-bright);
-        }
-        .mp-close-btn {
-          background: transparent;
-          border: none;
-          color: #888;
-          font-size: 18px;
-          cursor: pointer;
-          padding: 4px 8px;
-          border-radius: 8px;
-          transition: color 0.2s;
-        }
-        .mp-close-btn:hover {
-          color: #fff;
-        }
-
-        .mp-messages {
-          flex: 1;
-          padding: 16px;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          background: #0d0e14;
-        }
-        .mp-msg {
-          max-width: 85%;
-          padding: 10px 14px;
-          border-radius: 16px;
-          font-size: 12.5px;
-          line-height: 1.45;
-          word-break: break-word;
-        }
-        .mp-msg.agent {
-          align-self: flex-start;
-          background: #141622;
-          color: #e5e7eb;
-          border: 1px solid rgba(212, 175, 55, 0.3);
-          border-bottom-left-radius: 4px;
-        }
-        .mp-msg.user {
-          align-self: flex-end;
-          background: linear-gradient(135deg, #d4af37, #aa8329);
-          color: #000;
-          font-weight: 500;
-          border-bottom-right-radius: 4px;
-        }
-
-        .mp-footer {
-          padding: 12px 14px;
-          background: #090a0f;
-          border-top: 1px solid rgba(212, 175, 55, 0.2);
-          display: flex;
-          gap: 8px;
-        }
-        .mp-input {
-          flex: 1;
-          background: #12141c;
-          border: 1px solid rgba(212, 175, 55, 0.3);
-          border-radius: 12px;
-          padding: 10px 14px;
-          color: #fff;
-          font-size: 12px;
-          outline: none;
-        }
-        .mp-input:focus {
-          border-color: var(--gold);
-        }
-        .mp-send-btn {
-          background: linear-gradient(135deg, #d4af37, #aa8329);
-          color: #000;
-          border: none;
-          border-radius: 12px;
-          padding: 0 16px;
-          font-size: 12px;
-          font-weight: bold;
-          cursor: pointer;
-          transition: filter 0.2s;
-        }
-        .mp-send-btn:hover {
-          filter: brightness(1.1);
-        }
-
-        /* Control Panel Modal */
-        .mp-modal-backdrop {
-          display: none;
-          position: fixed;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0, 0, 0, 0.85);
-          backdrop-filter: blur(6px);
-          align-items: center;
-          justify-content: center;
-          z-index: 1000000;
-          padding: 16px;
-        }
-        .mp-modal-backdrop.active {
-          display: flex;
-        }
-        .mp-modal-card {
-          width: 520px;
-          max-width: 100%;
-          background: #0c0d14;
-          border: 2px solid var(--gold);
-          border-radius: 20px;
-          box-shadow: 0 25px 60px rgba(0,0,0,0.95), 0 0 35px rgba(212,175,55,0.35);
-          overflow: hidden;
-          animation: mpFadeIn 0.25s ease-out;
-        }
-        .mp-modal-header {
-          padding: 16px 20px;
-          background: #08090d;
-          border-bottom: 1px solid rgba(212,175,55,0.25);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-      </style>
-
-      <!-- Botón Flotante -->
-      <button class="mp-trigger" id="mpTriggerBtn">
-        <img src="${avatarUrl}" alt="${agentDisplayName}" class="mp-avatar" />
-        <div class="mp-meta">
-          <div class="mp-meta-title">${agentDisplayName}</div>
-          <div class="mp-meta-role">${agentRole}</div>
+    // Contenedor HTML del Widget
+    const widgetEl = document.createElement('div');
+    widgetEl.id = 'michael-pen-universal-widget';
+    widgetEl.innerHTML = `
+      <div class="mp-pulse-ring"></div>
+      <button class="mp-bubble-btn" id="mp-btn-toggle" title="Consultar al Consejero Michael Pen">
+        <div class="mp-avatar-container" id="mp-bubble-avatar-box">
+          <img class="mp-avatar-img" src="${officialPortraitUrl}" alt="${agentDisplayName}" onerror="this.style.display='none'; this.parentElement.innerText='🖋️';" />
         </div>
       </button>
 
-      <!-- Ventana de Diálogo -->
-      <div class="mp-window" id="mpWindow">
-        <div class="mp-header">
-          <div class="mp-header-info">
-            <img src="${avatarUrl}" alt="${agentDisplayName}" class="mp-header-avatar" />
+      <div class="mp-chat-window" id="mp-chat-window">
+        <div class="mp-chat-header">
+          <div class="mp-header-left">
+            <div class="mp-header-avatar mp-avatar-container" id="mp-header-avatar-box">
+              <img class="mp-avatar-img" src="${officialPortraitUrl}" alt="${agentDisplayName}" onerror="this.style.display='none'; this.parentElement.innerText='🖋️';" />
+            </div>
             <div>
-              <div class="mp-header-title">${agentDisplayName}</div>
-              <div class="mp-header-role">${agentRole} • ${ecosystemRaw}</div>
+              <p class="mp-header-title" id="mp-header-name">${agentDisplayName}</p>
+              <p class="mp-header-subtitle" id="mp-header-role">${agentRole}</p>
             </div>
           </div>
-          <button class="mp-close-btn" id="mpCloseBtn">✕</button>
+          <div class="mp-header-actions">
+            <button class="mp-btn-action" id="mp-btn-mute" title="Activar/Silenciar voz oficial de Michael Pen">🔊</button>
+            <button class="mp-btn-action" id="mp-btn-panel" style="display: none;" title="Configurar seudónimos y panel (Solo Administrador)">⚙️</button>
+            <button class="mp-btn-action" id="mp-btn-close" title="Cerrar ventana">✕</button>
+          </div>
         </div>
 
-        <div class="mp-messages" id="mpMessages">
-          <div class="mp-msg agent">${welcomeGreeting}</div>
+        <div class="mp-chat-body" id="mp-chat-body">
+          <div class="mp-msg mp-msg-agent">${welcomeGreeting}</div>
         </div>
 
-        <form class="mp-footer" id="mpForm">
-          <input type="text" class="mp-input" id="mpInput" placeholder="Realice una consulta a ${agentDisplayName}..." />
-          <button type="submit" class="mp-send-btn">Enviar</button>
-        </form>
+        <div class="mp-chat-footer">
+          <input type="text" class="mp-chat-input" id="mp-chat-input" placeholder="Pregunta a ${agentDisplayName}..." />
+          <button class="mp-send-btn" id="mp-btn-send">➤</button>
+        </div>
       </div>
 
-      <!-- Panel de Control y Seudónimos Universal -->
-      <div class="mp-modal-backdrop" id="mpControlPanel">
-        <div class="mp-modal-card">
-          <div class="mp-modal-header">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <img src="${avatarUrl}" style="width:38px; height:38px; border-radius:50%; border:1.5px solid var(--gold); object-fit:cover;" />
-              <div>
-                <h3 style="margin:0; font-size:14px; color:#fff; font-weight:bold; letter-spacing:0.5px;">Panel de Activación del Agente Michael Pen</h3>
-                <p style="margin:2px 0 0; font-size:10px; color:var(--gold-bright); font-family:monospace;">Cerebro Central: agente-universal-ecosistemas</p>
-              </div>
-            </div>
-            <button id="mpPanelCloseBtn" style="background:transparent; border:none; color:#888; font-size:22px; cursor:pointer;">✕</button>
+      <!-- Panel de Control y Seudónimos (Exclusivo Administrador) -->
+      <div class="mp-panel-modal" id="mp-panel-modal">
+        <div class="mp-panel-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0; font-size:18px; color:#d4af37; font-weight:bold;">⚙️ Panel Universal Michael Pen</h3>
+            <button id="mp-panel-close-btn" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">✕</button>
           </div>
-
-          <div style="padding:18px; overflow-y:auto; max-height:450px; display:flex; flex-direction:column; gap:14px;">
-            <!-- Protocolo de Seudónimos -->
-            <div>
-              <label style="font-size:11px; font-weight:bold; color:var(--gold-bright); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
-                1. Protocolo de Seudónimos e Identidad Adaptativa:
-              </label>
-              <select id="mpSelectPseudonym" style="width:100%; padding:10px 12px; background:#07080c; border:1px solid var(--gold); border-radius:10px; color:#fff; font-size:12px; outline:none; cursor:pointer;">
-                <option value="training" ${ecosystemNormalized.includes('training') ? 'selected' : ''}>Michael Pen — Master Pen Training (Consejero y Mentor)</option>
-                <option value="manga" ${ecosystemNormalized.includes('manga') ? 'selected' : ''}>Michael Pen — Manga Creator (Consejero Manga Creator)</option>
-                <option value="buyitall" ${ecosystemNormalized.includes('buy') || ecosystemNormalized.includes('shop') ? 'selected' : ''}>Buy it All — Asesor de Adquisiciones Premium</option>
-                <option value="vitrina" ${ecosystemNormalized.includes('vitrina') ? 'selected' : ''}>Vitrina — Curador de Vitrina Web</option>
-                <option value="jetro" ${ecosystemNormalized.includes('jetro') ? 'selected' : ''}>SubJetro — Consultor Estratégico de Gobernanza</option>
-                <option value="subsalomon" ${ecosystemNormalized.includes('salomon') ? 'selected' : ''}>Subsalomón — Consejero de Sabiduría y Rigor</option>
-              </select>
-            </div>
-
-            <!-- Calibración de Voz Masculina Oficial -->
-            <div style="background:#090a10; border:1px solid rgba(212,175,55,0.3); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px;">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:11px; font-weight:bold; color:#fff; text-transform:uppercase;">2. Voz Oficial Masculina (Barítono):</span>
-                <span style="font-size:10px; padding:2px 8px; border-radius:6px; background:rgba(16,185,129,0.2); color:#34d399; font-weight:bold; border:1px solid rgba(16,185,129,0.4);">Español Latinoamericano</span>
-              </div>
-              <p style="margin:0; font-size:11px; color:#9ca3af; line-height:1.4;">
-                Voz masculina grave, reposada y caballerosa con filtro anti-voz femenina activado y tono barítono (pitch 0.45).
-              </p>
-              <button id="mpBtnTestVoice" type="button" style="padding:8px 14px; background:linear-gradient(135deg, #d4af37, #aa8329); color:#000; border:none; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer; align-self:flex-start;">
-                ▶ Probar Voz Oficial en Vivo
-              </button>
-            </div>
-
-            <!-- Conexión Firebase Central -->
-            <div style="background:#090a10; border:1px solid rgba(212,175,55,0.3); border-radius:12px; padding:12px; font-size:11px; color:#cbd5e1;">
-              <span style="font-weight:bold; color:var(--gold-bright); display:block; margin-bottom:4px; text-transform:uppercase;">3. Bóveda Central de Inteligencia:</span>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span style="width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
-                <span>Conectado a Firestore: <strong style="color:#fff;">agente-universal-ecosistemas</strong></span>
-              </div>
-              <p style="margin:4px 0 0; font-size:10px; color:#64748b;">
-                Colección: /agent_profile/michael_pen • Memoria adaptativa multi-ecosistema
-              </p>
-            </div>
+          <p style="font-size:12px; color:#ccc; margin-bottom:14px; line-height:1.5;">
+            Ecosistema: <strong style="color:#f5e2a3;">${ecosystemRaw}</strong><br>
+            Soberanía del Agente: <span style="color:#d4af37; font-weight:bold;">Anfitrión Consultivo Oficial</span><br>
+            Voz Oficial: <span style="color:#f5e2a3; font-weight:bold;">Charon Barítono Masculino (Gemini TTS)</span>
+          </p>
+          <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:6px; color:#f5e2a3;">Cambiar Seudónimo / Identidad:</label>
+            <select id="mp-panel-role-select" style="width:100%; padding:9px 12px; background:#07080d; border:1px solid #d4af37; border-radius:10px; color:#fff; font-size:13px; outline:none;">
+              <option value="Michael Pen|Consejero y Mentor Master Pen">Michael Pen (Mentor Principal)</option>
+              <option value="Buy it All|Asesor Buy it All Products & Services">Buy it All (Asesor Comercial)</option>
+              <option value="Vitrina|Curador de Vitrina Web">Vitrina (Curador Ejecutivo)</option>
+              <option value="SubJetro|Consultor Estratégico Jetro">SubJetro (Gobernanza y Liderazgo)</option>
+              <option value="Subsalomón|Consejero de Sabiduría Subsalomón">Subsalomón (Sabiduría y Prudencia)</option>
+            </select>
           </div>
-
-          <div style="padding:14px 18px; background:#07080c; border-top:1px solid rgba(212,175,55,0.25); display:flex; justify-content:flex-end; gap:8px;">
-            <button id="mpBtnSavePanel" type="button" style="padding:9px 20px; background:linear-gradient(135deg, #d4af37, #aa8329); color:#000; border:none; border-radius:10px; font-size:12px; font-weight:bold; cursor:pointer;">
-              ✓ Guardar y Aplicar en Ecosistema
-            </button>
+          <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button id="mp-panel-save-btn" style="padding:9px 18px; background:#d4af37; color:#000; border:none; border-radius:9px; font-weight:bold; cursor:pointer;">Aplicar Cambios</button>
           </div>
         </div>
       </div>
     `;
+    document.body.appendChild(widgetEl);
 
-    const triggerBtn = shadow.getElementById('mpTriggerBtn');
-    const windowEl = shadow.getElementById('mpWindow');
-    const closeBtn = shadow.getElementById('mpCloseBtn');
-    const form = shadow.getElementById('mpForm');
-    const input = shadow.getElementById('mpInput');
-    const messages = shadow.getElementById('mpMessages');
-    const panelEl = shadow.getElementById('mpControlPanel');
-    const panelCloseBtn = shadow.getElementById('mpPanelCloseBtn');
-    const btnTestVoice = shadow.getElementById('mpBtnTestVoice');
-    const btnSavePanel = shadow.getElementById('mpBtnSavePanel');
-    const selectPseudonym = shadow.getElementById('mpSelectPseudonym');
+    // Referencias del DOM
+    const chatWindow = document.getElementById('mp-chat-window');
+    const chatBody = document.getElementById('mp-chat-body');
+    const chatInput = document.getElementById('mp-chat-input');
+    const btnSend = document.getElementById('mp-btn-send');
+    const btnToggle = document.getElementById('mp-btn-toggle');
+    const btnClose = document.getElementById('mp-btn-close');
+    const btnMute = document.getElementById('mp-btn-mute');
+    const btnPanel = document.getElementById('mp-btn-panel');
+    const panelModal = document.getElementById('mp-panel-modal');
+    const panelCloseBtn = document.getElementById('mp-panel-close-btn');
+    const panelSaveBtn = document.getElementById('mp-panel-save-btn');
+    const panelRoleSelect = document.getElementById('mp-panel-role-select');
+    const headerName = document.getElementById('mp-header-name');
+    const headerRole = document.getElementById('mp-header-role');
 
-    window.__mpToggle = toggle;
-    window.__mpToggle = toggle;
-    function toggle(open) {
-      const active = open !== undefined ? open : !windowEl.classList.contains('active');
-      if (active) {
-        windowEl.classList.add('active');
-        triggerBtn.style.display = 'none';
-        input.focus();
-        SpeechEngine.speak(welcomeGreeting);
+    // Comprobación de rol de Administrador para mostrar u ocultar el botón ⚙️
+    function checkIsAdmin() {
+      if (typeof window !== 'undefined') {
+        if (window.__mpIsAdmin === true) return true;
+        try {
+          const stored = localStorage.getItem('mpt_current_user');
+          if (stored) {
+            const u = JSON.parse(stored);
+            if (u && (u.role === 'admin_principal' || u.role === 'admin_vip_tester')) return true;
+          }
+        } catch (_) {}
+      }
+      return false;
+    }
+
+    function updateAdminPanelVisibility() {
+      if (btnPanel) {
+        btnPanel.style.display = checkIsAdmin() ? 'inline-flex' : 'none';
+      }
+    }
+
+    // Métodos globales
+    window.__mpToggle = function (forceState) {
+      const isVisible = chatWindow.style.display === 'flex';
+      const targetState = typeof forceState === 'boolean' ? forceState : !isVisible;
+
+      // REGLA FUNDAMENTAL: Al abrir el chat o alterar su estado se fulmina toda voz o narrativa en off
+      const arbiter = getArbiter();
+      if (arbiter) {
+        arbiter.killAllAudio('chat_toggle');
       } else {
-        windowEl.classList.remove('active');
-        triggerBtn.style.display = 'flex';
-        SpeechEngine.stop();
+        SpeechEngine.stop(false);
+        if (window.VoiceAgent && typeof window.VoiceAgent.stopSpeaking === 'function') {
+          try { window.VoiceAgent.stopSpeaking(false); } catch (_) {}
+        }
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+          window.dispatchEvent(new CustomEvent('mp-silence-all-narration', { detail: { source: 'chat_toggle_open' } }));
+        }
       }
-    }
 
-    window.__mpOpenPanel = openControlPanel;
-    window.__mpOpenPanel = openControlPanel;
-    function openControlPanel() {
-      if (panelEl) {
-        panelEl.classList.add('active');
-        SpeechEngine.speak('Panel de control y seudónimos del Agente Michael Pen activado. ¿Qué parámetro desea configurar?');
+      chatWindow.style.display = targetState ? 'flex' : 'none';
+      if (targetState) {
+        chatInput.focus();
+        updateAdminPanelVisibility();
       }
-    }
+    };
 
-    window.__mpClosePanel = closeControlPanel;
-    window.__mpClosePanel = closeControlPanel;
-    function closeControlPanel() {
-      if (panelEl) {
-        panelEl.classList.remove('active');
-        SpeechEngine.stop();
+    window.__mpOpenPanel = function () {
+      if (!checkIsAdmin()) {
+        console.warn('[Michael Pen Bridge] Acceso denegado: el panel de identidades es exclusivo para administradores.');
+        return;
       }
-    }
+      panelModal.style.display = 'flex';
+    };
 
-    triggerBtn.addEventListener('click', () => toggle(true));
-    closeBtn.addEventListener('click', () => toggle(false));
-    panelCloseBtn.addEventListener('click', closeControlPanel);
-    panelEl.addEventListener('click', (e) => {
-      if (e.target === panelEl) closeControlPanel();
+    window.__mpClosePanel = function () {
+      panelModal.style.display = 'none';
+    };
+
+    window.__mpUpdateAdminPrivileges = function (isAdmin) {
+      window.__mpIsAdmin = !!isAdmin;
+      updateAdminPanelVisibility();
+    };
+
+    window.__mpSetAgentIdentity = function (name, role) {
+      if (!name) return;
+      agentDisplayName = name;
+      if (role) agentRole = role;
+      if (headerName) headerName.textContent = name;
+      if (headerRole) headerRole.textContent = agentRole;
+      if (chatInput) chatInput.placeholder = `Pregunta a ${name}...`;
+      if (panelRoleSelect) {
+        panelRoleSelect.value = `${name}|${agentRole}`;
+      }
+    };
+
+    // Escuchar eventos de cambio de sesión o autenticación
+    window.addEventListener('mp-auth-changed', (e) => {
+      if (e && e.detail) {
+        window.__mpIsAdmin = !!e.detail.isAdmin;
+        updateAdminPanelVisibility();
+      }
     });
 
-    btnTestVoice.addEventListener('click', () => {
-      SpeechEngine.speak('Saludos cordiales. Soy Michael Pen, anfitrión oficial del ecosistema. Mi voz masculina se encuentra configurada en tono barítono con cadencia pausada y solemne.');
+    // Listeners de botones con silenciamiento preventivo inmediato
+    btnToggle.addEventListener('click', () => {
+      const arbiter = getArbiter();
+      if (arbiter) arbiter.killAllAudio('avatar_button_click');
+      window.__mpToggle();
+    });
+    btnClose.addEventListener('click', () => {
+      const arbiter = getArbiter();
+      if (arbiter) arbiter.killAllAudio('chat_close_click');
+      window.__mpToggle(false);
+    });
+    chatInput.addEventListener('focus', () => {
+      const arbiter = getArbiter();
+      if (arbiter) arbiter.killAllAudio('chat_input_focus');
+    });
+    btnPanel.addEventListener('click', () => window.__mpOpenPanel());
+    panelCloseBtn.addEventListener('click', () => window.__mpClosePanel());
+
+    panelSaveBtn.addEventListener('click', () => {
+      const [name, role] = panelRoleSelect.value.split('|');
+      agentDisplayName = name;
+      agentRole = role;
+      headerName.textContent = name;
+      headerRole.textContent = role;
+      chatInput.placeholder = `Pregunta a ${name}...`;
+      window.__mpClosePanel();
+      window.dispatchEvent(new CustomEvent('mp-agent-identity-changed', { detail: { name, role } }));
+      appendMessage('agent', `Identidad actualizada a ${name} (${role}). ¿En qué puedo orientarle?`);
     });
 
-    btnSavePanel.addEventListener('click', () => {
-      const val = selectPseudonym.value;
-      if (val === 'manga') {
-        agentDisplayName = 'Michael Pen';
-        agentRole = 'Consejero Manga Creator';
-        welcomeGreeting = 'Saludos cordiales. Soy Michael Pen, consejero en herramientas de alta gama para Master Pen Manga Creator.';
-      } else if (val === 'buyitall') {
-        agentDisplayName = 'Buy it All';
-        agentRole = 'Asesor Buy it All Products & Services';
-        welcomeGreeting = 'Bienvenido a Buy it All. Soy su asesor de adquisiciones premium.';
-      } else if (val === 'vitrina') {
-        agentDisplayName = 'Vitrina';
-        agentRole = 'Curador de Vitrina Web';
-        welcomeGreeting = 'Le doy la bienvenida a Vitrina Web. Soy su curador ejecutivo.';
-      } else if (val === 'jetro') {
-        agentDisplayName = 'SubJetro';
-        agentRole = 'Consultor Estratégico Jetro';
-        welcomeGreeting = 'Saludos cordiales. Como SubJetro, pongo a su disposición nuestro consejo de gobernanza.';
-      } else if (val === 'subsalomon') {
-        agentDisplayName = 'Subsalomón';
-        agentRole = 'Consejero de Sabiduría Subsalomón';
-        welcomeGreeting = 'La paz sea con usted. Soy Subsalomón, a su servicio para discernir con rigor y prudencia.';
-      } else {
-        agentDisplayName = 'Michael Pen';
-        agentRole = 'Consejero y Mentor Master Pen';
-        welcomeGreeting = 'Saludos cordiales. Soy Michael Pen, anfitrión de Master Pen Training y consejero consultivo.';
-      }
-      
-      const titles = shadow.querySelectorAll('.mp-meta-title, .mp-header-title');
-      titles.forEach(t => t.textContent = agentDisplayName);
-      const roles = shadow.querySelectorAll('.mp-meta-role, .mp-header-role');
-      roles.forEach(r => r.textContent = agentRole);
+    // Inicializar visibilidad según credenciales
+    updateAdminPanelVisibility();
 
-      closeControlPanel();
-      SpeechEngine.speak('Configuración del agente guardada y activada exitosamente para este ecosistema.');
+    btnMute.addEventListener('click', () => {
+      const muted = SpeechEngine.toggleMute();
+      btnMute.textContent = muted ? '🔇' : '🔊';
     });
+
+    const conversationHistory = [];
 
     function appendMessage(sender, text) {
-      const el = document.createElement('div');
-      el.className = 'mp-msg ' + sender;
-      el.textContent = text;
-      messages.appendChild(el);
-      messages.scrollTop = messages.scrollHeight;
+      const msgDiv = document.createElement('div');
+      msgDiv.className = sender === 'user' ? 'mp-msg mp-msg-user' : 'mp-msg mp-msg-agent';
+      msgDiv.textContent = text;
+      chatBody.appendChild(msgDiv);
+      chatBody.scrollTop = chatBody.scrollHeight;
+      conversationHistory.push({
+        role: sender === 'user' ? 'user' : 'model',
+        text: text
+      });
+      if (conversationHistory.length > 20) {
+        conversationHistory.shift();
+      }
+      if (sender === 'agent') {
+        SpeechEngine.speak(text);
+      }
     }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const query = input.value.trim();
-      if (!query) return;
+    async function handleSendMessage() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      chatInput.value = '';
+      appendMessage('user', text);
 
-      input.value = '';
-      appendMessage('user', query);
-
-      // Verificación de Blindaje de Confidencialidad
-      const lower = query.toLowerCase();
+      // 1. Verificación de seguridad inmediata
+      const lower = text.toLowerCase();
       if (SENSITIVE_KEYWORDS.some(kw => lower.includes(kw))) {
         appendMessage('agent', SECURITY_SHIELD_PHRASE);
-        SpeechEngine.speak(SECURITY_SHIELD_PHRASE);
         return;
       }
 
-      // Enviar a la API institucional o generar respuesta estructurada
+      // 2. Consulta al Cerebro de la Mansión (Endpoint Local y Matriz Central)
       try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userMessage: query, ecosystem: ecosystemNormalized })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const reply = data.reply || data.text || 'Ha sido un placer orientarle.';
-          appendMessage('agent', reply);
-          SpeechEngine.speak(reply);
-        } else {
-          throw new Error('API offline');
+        const endpoints = ['/api/chat', `${masterOrigin}/api/chat`];
+        let replyData = null;
+
+        for (const ep of endpoints) {
+          try {
+            const res = await fetch(ep, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: text,
+                ecosystem: ecosystemRaw,
+                role: agentRole,
+                history: conversationHistory.slice(-10)
+              })
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              replyData = data.reply || data.text;
+              if (replyData) break;
+            }
+          } catch (_) {}
+        }
+
+        if (replyData) {
+          appendMessage('agent', replyData);
+          return;
         }
       } catch (err) {
-        const fallback = 'Como consejero de ' + ecosystemRaw + ', recomiendo perseverar en el rigor y la precisión estilística. ¿Desea profundizar en algún punto específico?';
-        appendMessage('agent', fallback);
-        SpeechEngine.speak(fallback);
+        console.warn('[Michael Pen Bridge] Error comunicando con cerebro:', err);
       }
+
+      // 3. Respuesta consultiva institucional de respaldo dinámico (Anti-bucle)
+      let fallbackReply = '';
+      if (lower.includes('hola') || lower.includes('buenos') || lower.includes('saludos')) {
+        fallbackReply = `¡Qué gusto saludarte! Como ${agentDisplayName}, es un honor recibirte en ${ecosystemRaw}. Cuéntame, ¿qué proyecto literario, duda técnica o cátedra académica deseas explorar hoy?`;
+      } else if (lower.includes('quién eres') || lower.includes('quien eres') || lower.includes('mansion') || lower.includes('clon')) {
+        fallbackReply = `Soy ${agentDisplayName}, anfitrión de la Mansión Matriz de Master Pen Studio Creations. No soy una copia; atiendo directamente a cada discípulo en esta academia de formación.`;
+      } else if (lower.includes('n8n') || lower.includes('copilot') || lower.includes('grok') || lower.includes('ia') || lower.includes('inteligencia')) {
+        fallbackReply = 'En nuestro Observatorio Tecnológico de la academia contamos con las crónicas detalladas de 11 grandes IAs, incluyendo a n8n para automatizaciones, Copilot para redacción asistida y Grok para investigación en tiempo real. Puedes consultar sus perfiles oficiales en las diapositivas superiores.';
+      } else if (lower.includes('libro') || lower.includes('catálogo') || lower.includes('catalogo') || lower.includes('manifiesto')) {
+        fallbackReply = 'En nuestra biblioteca destacan el «Manifiesto de la Pluma Maestra», «La Cadencia del Oro Viejo en la Sintaxis» y el «Atlas Dialéctico de Negociación», concebidos para forjar una autoridad psicológica irreversible mediante la palabra.';
+      } else if (lower.includes('curso') || lower.includes('escritura') || lower.includes('redactar') || lower.includes('escribir')) {
+        fallbackReply = 'El dominio de la pluma requiere anclaje sensorial en las primeras 40 palabras, control del tempo cognitivo y eliminación rigurosa de adverbios superfluos. Te invito a explorar el curso «Quiero ser Escritor».';
+      } else if (lower.includes('precio') || lower.includes('costo') || lower.includes('membres')) {
+        fallbackReply = 'Nuestra membresía oficial tiene un costo preferente de $5.99 USD mensuales, con tarifa de honor de $2.99 USD para los primeros 100 inscritos.';
+      } else {
+        const reflexiones = [
+          `En el oficio de las letras, la claridad de pensamiento engendra la belleza de la prosa. Respecto a lo que planteas, te recomiendo perseverar con disciplina y enfoque en cada línea. ¿Deseas que profundicemos en algún aspecto particular de tu técnica?`,
+          `Un verdadero autor construye su autoridad sobre la verdad y el rigor lingüístico. Cuéntame más detalles sobre tu objetivo para brindarte una orientación personalizada y certera.`,
+          `¡Fantástico tema! La alta retórica nos enseña a escuchar primero para responder con elocuencia precisa. ¿En qué dirección deseas enfocar este aprendizaje?`
+        ];
+        fallbackReply = reflexiones[Math.floor(Math.random() * reflexiones.length)];
+      }
+      appendMessage('agent', fallbackReply);
+    }
+
+    btnSend.addEventListener('click', handleSendMessage);
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleSendMessage();
     });
 
-    // Exponer API global unificada en window (soporta UniversalAgent y MichaelPenAgent)
-    const agentApi = {
-      open: () => toggle(true),
-      close: () => toggle(false),
-      toggle: () => toggle(),
-      openControlPanel: () => openControlPanel(),
-      closeControlPanel: () => closeControlPanel(),
-      speak: (t) => SpeechEngine.speak(t),
-      stop: () => SpeechEngine.stop(),
-      ecosystem: ecosystemRaw,
-      role: agentRole,
-      isReady: true
-    };
-
-    window.UniversalAgent = agentApi;
-    window.MichaelPenAgent = agentApi;
+    console.log('[Michael Pen Bridge] Widget y puente universal inicializados con voz Charon y avatar oficial.');
   }
 
-  // Ejecución cuando el DOM esté listo
+  // Inicializar al cargar el DOM
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initBridgeUI);
   } else {
     initBridgeUI();
   }
-
-  console.log('[Michael Pen Bridge] SDK Universal inicializado con éxito para:', ecosystemRaw);
 })();

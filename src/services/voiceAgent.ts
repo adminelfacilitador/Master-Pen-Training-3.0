@@ -1,18 +1,34 @@
 // Michael Pen Agent & Course Narrator Voice Synthesis (TTS)
 // Warm, gentlemanly, polite, patient, human-cadence Latin American Spanish male voice without loops or repetition
 
+import { MasterAudioArbiter } from './audioArbiter';
+
 export class VoiceAgent {
   private static isSpeaking = false;
   private static activeUtterance: SpeechSynthesisUtterance | null = null;
   private static cachedVoices: SpeechSynthesisVoice[] = [];
   private static currentAudio: HTMLAudioElement | null = null;
+  private static activeEpoch = 0;
 
   static {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      this.cachedVoices = window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => {
+    if (typeof window !== 'undefined') {
+      (window as any).VoiceAgent = VoiceAgent;
+      MasterAudioArbiter.initialize();
+      if (window.speechSynthesis) {
         this.cachedVoices = window.speechSynthesis.getVoices();
-      };
+        window.speechSynthesis.onvoiceschanged = () => {
+          this.cachedVoices = window.speechSynthesis.getVoices();
+        };
+      }
+      // Silenciar de inmediato VoiceAgent si el widget universal o cualquier otro módulo lo solicita
+      window.addEventListener('mp-silence-all-narration', (e: any) => {
+        if (e && e.detail && e.detail.source === 'voice_agent') return;
+        VoiceAgent.stopSpeaking(false);
+      });
+      window.addEventListener('mp-master-audio-silence', (e: any) => {
+        if (e && e.detail && e.detail.source === 'voice_agent') return;
+        VoiceAgent.stopSpeaking(false);
+      });
     }
   }
 
@@ -141,6 +157,7 @@ export class VoiceAgent {
    * Speaks using Michael Pen's professional Latin American masculine voice.
    * Prioritizes high-definition Gemini TTS (Charon voice) to ensure 100% masculine baritone tone,
    * with seamless fallback to Web Speech API.
+   * Irrevocably coordinated through MasterAudioArbiter to avoid any dual narration.
    */
   public static speakMichaelPen(
     text: string, 
@@ -148,8 +165,11 @@ export class VoiceAgent {
     onEnd?: () => void,
     onProgressSentence?: (sentence: string, index: number, total: number) => void
   ): void {
-    // Single Voice Sentinel: Apagar de inmediato cualquier voz anterior
-    this.stopSpeaking();
+    // Si el chat flotante de Michael Pen está abierto, jamás reproducir voz en off de fondo
+    if (MasterAudioArbiter.isChatOpen()) {
+      if (onEnd) onEnd();
+      return;
+    }
 
     const cleaned = this.cleanTextForNarration(text);
     if (!cleaned) {
@@ -157,6 +177,9 @@ export class VoiceAgent {
       return;
     }
 
+    // Iniciar nuevo turno atómico exclusivo en el árbitro
+    const track = MasterAudioArbiter.startTrack('voice_over');
+    this.activeEpoch = track.epoch;
     this.isSpeaking = true;
     if (onStart) onStart();
 
@@ -164,45 +187,64 @@ export class VoiceAgent {
     fetch('/api/tts/speak', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: cleaned, voice: 'Charon' })
+      body: JSON.stringify({ text: cleaned, voice: 'Charon' }),
+      signal: track.signal
     })
       .then(res => {
         if (!res.ok) throw new Error('TTS server status ' + res.status);
         return res.json();
       })
       .then(data => {
-        if (!this.isSpeaking) return;
+        if (!this.isSpeaking || !MasterAudioArbiter.isEpochActive(track.epoch) || MasterAudioArbiter.isChatOpen()) {
+          return;
+        }
         if (data && data.audioBase64) {
           const audio = new Audio('data:audio/wav;base64,' + data.audioBase64);
+          if (!MasterAudioArbiter.setActiveAudio(audio, track.epoch)) {
+            return;
+          }
           this.currentAudio = audio;
           audio.onended = () => {
-            this.isSpeaking = false;
-            this.currentAudio = null;
-            if (onEnd) onEnd();
+            if (MasterAudioArbiter.isEpochActive(track.epoch)) {
+              this.isSpeaking = false;
+              this.currentAudio = null;
+              if (onEnd) onEnd();
+            }
           };
           audio.onerror = () => {
             this.currentAudio = null;
-            this.speakWithWebSpeechFallback(cleaned, onStart, onEnd, onProgressSentence);
+            if (this.isSpeaking && MasterAudioArbiter.isEpochActive(track.epoch) && !MasterAudioArbiter.isChatOpen()) {
+              this.speakWithWebSpeechFallback(cleaned, track.epoch, onStart, onEnd, onProgressSentence);
+            }
           };
           audio.play().catch(() => {
-            this.speakWithWebSpeechFallback(cleaned, onStart, onEnd, onProgressSentence);
+            if (this.isSpeaking && MasterAudioArbiter.isEpochActive(track.epoch) && !MasterAudioArbiter.isChatOpen()) {
+              this.speakWithWebSpeechFallback(cleaned, track.epoch, onStart, onEnd, onProgressSentence);
+            }
           });
         } else {
-          this.speakWithWebSpeechFallback(cleaned, onStart, onEnd, onProgressSentence);
+          if (this.isSpeaking && MasterAudioArbiter.isEpochActive(track.epoch) && !MasterAudioArbiter.isChatOpen()) {
+            this.speakWithWebSpeechFallback(cleaned, track.epoch, onStart, onEnd, onProgressSentence);
+          }
         }
       })
-      .catch(() => {
-        this.speakWithWebSpeechFallback(cleaned, onStart, onEnd, onProgressSentence);
+      .catch((err) => {
+        if (err && err.name === 'AbortError') return;
+        if (!this.isSpeaking || !MasterAudioArbiter.isEpochActive(track.epoch) || MasterAudioArbiter.isChatOpen()) {
+          return;
+        }
+        this.speakWithWebSpeechFallback(cleaned, track.epoch, onStart, onEnd, onProgressSentence);
       });
   }
 
   private static speakWithWebSpeechFallback(
     cleaned: string,
+    epoch: number,
     onStart?: () => void,
     onEnd?: () => void,
     onProgressSentence?: (sentence: string, index: number, total: number) => void
   ): void {
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
+    if (typeof window === 'undefined' || !window.speechSynthesis || !this.isSpeaking || !MasterAudioArbiter.isEpochActive(epoch) || MasterAudioArbiter.isChatOpen()) {
       this.isSpeaking = false;
       if (onEnd) onEnd();
       return;
@@ -221,7 +263,7 @@ export class VoiceAgent {
     let currentIndex = 0;
 
     const speakNextSentence = () => {
-      if (!this.isSpeaking || currentIndex >= sentences.length) {
+      if (!this.isSpeaking || !MasterAudioArbiter.isEpochActive(epoch) || MasterAudioArbiter.isChatOpen() || currentIndex >= sentences.length) {
         this.isSpeaking = false;
         this.activeUtterance = null;
         if (onEnd) onEnd();
@@ -244,10 +286,20 @@ export class VoiceAgent {
       }
 
       utterance.onend = () => {
+        if (!this.isSpeaking || !MasterAudioArbiter.isEpochActive(epoch) || MasterAudioArbiter.isChatOpen()) {
+          this.isSpeaking = false;
+          this.activeUtterance = null;
+          if (onEnd) onEnd();
+          return;
+        }
         currentIndex++;
         setTimeout(() => {
-          if (this.isSpeaking) {
+          if (this.isSpeaking && MasterAudioArbiter.isEpochActive(epoch) && !MasterAudioArbiter.isChatOpen()) {
             speakNextSentence();
+          } else {
+            this.isSpeaking = false;
+            this.activeUtterance = null;
+            if (onEnd) onEnd();
           }
         }, 40);
       };
@@ -266,19 +318,25 @@ export class VoiceAgent {
     speakNextSentence();
   }
 
-  public static stopSpeaking(): void {
+  public static stopSpeaking(notifyArbiter = true): void {
+    this.isSpeaking = false;
     if (this.currentAudio) {
       try {
         this.currentAudio.pause();
         this.currentAudio.currentTime = 0;
+        this.currentAudio.src = '';
       } catch (e) {}
       this.currentAudio = null;
     }
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch (_) {}
       this.activeUtterance = null;
     }
-    this.isSpeaking = false;
+    if (notifyArbiter) {
+      MasterAudioArbiter.killAllAudio('voice_agent_manual_stop');
+    }
   }
 
   public static pauseSpeaking(): void {
@@ -291,6 +349,7 @@ export class VoiceAgent {
   }
 
   public static resumeSpeaking(): void {
+    if (MasterAudioArbiter.isChatOpen()) return;
     if (this.currentAudio) {
       this.currentAudio.play();
     }

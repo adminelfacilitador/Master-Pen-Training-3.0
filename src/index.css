@@ -57,3 +57,10 @@
   background-size: 24px 24px;
 }
 
+/* Focus Mode Global Immunity & Isolation */
+[data-mp-focus-active="true"] #michael-pen-universal-widget {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+

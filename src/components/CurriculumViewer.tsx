@@ -40,6 +40,9 @@ import { parseMediaUrl } from '../services/mediaParser';
 import { Camera, Film } from 'lucide-react';
 import { CourseSlideViewer } from './CourseSlideViewer';
 import { EscrituraCreativaViewer } from './EscrituraCreativaViewer';
+import { PomodoroTimer } from './PomodoroTimer';
+import { FocusModeReader } from './FocusModeReader';
+import { CourseBlockData, QUIERO_SER_ESCRITOR_BLOCKS } from '../data/quieroSerEscritorCourse';
 
 interface CurriculumViewerProps {
   currentUser: UserProfile | null;
@@ -60,6 +63,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
   const [selectedCourse, setSelectedCourse] = useState<'quiero_ser_escritor' | 'escritura_creativa'>('quiero_ser_escritor');
   const [isExploreMenuOpen, setIsExploreMenuOpen] = useState<boolean>(false);
   const [learningMode, setLearningMode] = useState<'slides' | 'player'>('slides');
+  const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
   const [activeResourceId, setActiveResourceId] = useState<string>('res_intro_00');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -455,6 +459,17 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
               <Video className="w-3.5 h-3.5" />
               <span>Reproductor Multimedia</span>
             </button>
+
+            {/* Botón Modo Enfoque de Lectura Inmersiva */}
+            <button
+              type="button"
+              onClick={() => setIsFocusMode(true)}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer bg-gradient-to-r from-[#d4af37]/20 via-[#c5a059]/30 to-[#856524]/20 hover:from-[#d4af37]/40 hover:to-[#856524]/40 border border-[#d4af37] text-[#f5e2a3] hover:text-white shadow-[0_0_12px_rgba(212,175,55,0.3)] hover:shadow-[0_0_20px_rgba(212,175,55,0.5)] group"
+              title="Activar Modo Enfoque: Oscurece la interfaz, oculta barras de navegación y expande la cátedra a pantalla completa"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#d4af37] animate-pulse group-hover:scale-110 transition-transform" />
+              <span>Modo Enfoque</span>
+            </button>
           </div>
 
           {/* Course Progress Widget */}
@@ -475,6 +490,25 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Contador Pomodoro: Bloques de Enfoque Intelectual (25 min Lectura / 5 min Descanso) */}
+      <PomodoroTimer className="mb-6" />
+
+      {/* Visualizador de Pantalla Completa: Modo Enfoque Inmersivo */}
+      {(() => {
+        const courseBlocksList: CourseBlockData[] = cloudState.getCourseBlocks();
+        const currentCourseBlockId = selectedBlockId === 'intro' ? 'block_01' : selectedBlockId;
+        const activeCourseBlock = courseBlocksList.find(b => b.id === currentCourseBlockId) || courseBlocksList[0] || QUIERO_SER_ESCRITOR_BLOCKS[0];
+        
+        return (
+          <FocusModeReader
+            isOpen={isFocusMode}
+            onClose={() => setIsFocusMode(false)}
+            activeBlock={activeCourseBlock}
+            brandingPortrait={branding.portrait}
+          />
+        );
+      })()}
 
       {learningMode === 'slides' ? (
         <CourseSlideViewer

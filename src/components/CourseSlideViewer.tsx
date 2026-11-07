@@ -17,6 +17,7 @@ import { QUIERO_SER_ESCRITOR_BLOCKS, CourseSlide, CourseBlockData } from '../dat
 import { VoiceAgent } from '../services/voiceAgent';
 import { MasterAudioArbiter } from '../services/audioArbiter';
 import { cloudState } from '../services/cloudState';
+import { FocusModeReader } from './FocusModeReader';
 
 interface CourseSlideViewerProps {
   currentBlockId: string;
@@ -52,6 +53,7 @@ export const CourseSlideViewer: React.FC<CourseSlideViewerProps> = ({
   const [lockedNotice, setLockedNotice] = useState<string | null>(null);
   const [useMichaelPenFormat, setUseMichaelPenFormat] = useState(true);
   const [isPrologueDimmed, setIsPrologueDimmed] = useState(false);
+  const [isFocusReaderOpen, setIsFocusReaderOpen] = useState(false);
 
   const branding = cloudState.getBrandingImages();
   const currentSlide: CourseSlide = activeBlock.slides[slideIndex] || activeBlock.slides[0];
@@ -321,6 +323,21 @@ export const CourseSlideViewer: React.FC<CourseSlideViewerProps> = ({
               <span className="hidden sm:inline">Modo Fotovideo</span>
             </button>
 
+            {/* Modo Enfoque de Lectura a Pantalla Completa */}
+            <button
+              type="button"
+              onClick={() => {
+                VoiceAgent.stopSpeaking(false);
+                setIsNarrating(false);
+                setIsFocusReaderOpen(true);
+              }}
+              className="px-3.5 py-1.5 rounded-xl border border-[#d4af37]/60 bg-gradient-to-r from-[#d4af37]/20 to-[#856524]/20 hover:from-[#d4af37]/35 hover:to-[#856524]/35 text-[#f5e2a3] hover:text-white text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer shadow-[0_0_12px_rgba(212,175,55,0.25)]"
+              title="Activar Modo Enfoque: Oscurece la interfaz, oculta barras de navegación y expande la cátedra a pantalla completa"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#d4af37] animate-pulse" />
+              <span className="hidden sm:inline">Modo Enfoque</span>
+            </button>
+
             {/* Narrator Voice Button (Host Michael Pen) */}
             <button
               type="button"
@@ -483,6 +500,15 @@ export const CourseSlideViewer: React.FC<CourseSlideViewerProps> = ({
           Tu avance de cátedra se conserva seguro en la nube
         </span>
       </div>
+
+      {/* Visualizador de Pantalla Completa: Modo Enfoque */}
+      <FocusModeReader
+        isOpen={isFocusReaderOpen}
+        onClose={() => setIsFocusReaderOpen(false)}
+        activeBlock={activeBlock}
+        initialSlideIndex={slideIndex}
+        brandingPortrait={branding.portrait}
+      />
     </div>
   );
 };

@@ -23,6 +23,7 @@ import {
 import { UserProfile } from '../types';
 import { cloudState } from '../services/cloudState';
 import { compressImageFile } from '../utils/imageCompressor';
+import { CurriculumRadarChart } from './CurriculumRadarChart';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -286,6 +287,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <span>{academicDecision.recommendation}</span>
               </div>
             </div>
+
+            {/* Visualización de Progreso Curricular con Recharts Radar */}
+            <CurriculumRadarChart 
+              blocks={blocks} 
+              blockScores={blockScores} 
+            />
 
             {/* 5-Block Score Breakdown Table */}
             <div className="space-y-2">

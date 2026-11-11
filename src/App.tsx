@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Header } from './components/Header';
 import { WelcomeCard } from './components/WelcomeCard';
 import { EcosystemPortal } from './components/EcosystemPortal';
@@ -37,6 +37,11 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState<boolean>(false);
   const [targetExamBlockId, setTargetExamBlockId] = useState<string>('block_01');
+
+  const handleWelcomeComplete = useCallback(() => {
+    setIsWelcomeSplashActive(false);
+    setIsLoginGateActive(true);
+  }, []);
 
   // Initialize Webview perimeter security shield (anti-F12, anti-inspect, anti-copy)
   useEffect(() => {
@@ -138,10 +143,7 @@ export default function App() {
       {/* 1. PANTALLA DE BIENVENIDA INICIAL (10s con voz de Michael Pen y bloqueo total de pantalla) */}
       <WelcomeSplashScreen
         isOpen={isWelcomeSplashActive}
-        onComplete={() => {
-          setIsWelcomeSplashActive(false);
-          setIsLoginGateActive(true);
-        }}
+        onComplete={handleWelcomeComplete}
       />
 
       {/* 2. PANTALLA DE LOGIN OBLIGATORIA TRAS SALUDO INICIAL */}

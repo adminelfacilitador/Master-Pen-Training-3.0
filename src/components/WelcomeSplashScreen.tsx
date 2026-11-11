@@ -19,6 +19,7 @@ export const WelcomeSplashScreen: React.FC<WelcomeSplashScreenProps> = ({
   const [audioBlockedByBrowser, setAudioBlockedByBrowser] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const hasSpokenRef = useRef(false);
+  const hasFinishedRef = useRef(false);
 
   // Mensaje de saludo mejorado gramaticalmente con tono culto, solemne y hospitalario de Michael Pen
   const WELCOME_SPEECH_TEXT = 
@@ -57,7 +58,12 @@ export const WelcomeSplashScreen: React.FC<WelcomeSplashScreenProps> = ({
 
   // Temporizador exacto de 10 segundos antes de presentar la pantalla de login
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      hasFinishedRef.current = false;
+      return;
+    }
+
+    hasFinishedRef.current = false;
 
     // Intentar reproducir el saludo de inmediato
     const audioTimer = setTimeout(() => {
@@ -70,7 +76,6 @@ export const WelcomeSplashScreen: React.FC<WelcomeSplashScreenProps> = ({
       setSecondsRemaining((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          handleFinishSplash();
           return 0;
         }
         return prev - 1;
@@ -83,7 +88,18 @@ export const WelcomeSplashScreen: React.FC<WelcomeSplashScreenProps> = ({
     };
   }, [isOpen]);
 
+  // Transición segura fuera del render cycle cuando el temporizador alcanza cero
+  useEffect(() => {
+    if (isOpen && secondsRemaining === 0 && !hasFinishedRef.current) {
+      hasFinishedRef.current = true;
+      VoiceAgent.stopSpeaking(false);
+      onComplete();
+    }
+  }, [secondsRemaining, isOpen, onComplete]);
+
   const handleFinishSplash = () => {
+    if (hasFinishedRef.current) return;
+    hasFinishedRef.current = true;
     VoiceAgent.stopSpeaking(false);
     onComplete();
   };

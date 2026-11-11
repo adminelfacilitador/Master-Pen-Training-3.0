@@ -31,8 +31,72 @@
       window.MASTER_PEN_PORTRAIT_URL = "/michael-pen-official-avatar.jpg";
     </script>
 
-    <!-- 4. SDK Universal con Cerebro, Voz Oficial de Michael Pen y Sincronización en Tiempo Real -->
-    <script src="/agent-universal-bridge.js"></script>
+    <!-- 4. SDK Universal cargado de forma asíncrona y diferida (async & defer) -->
+    <script src="/agent-universal-bridge.js" async defer></script>
+
+    <!-- 5. Lógica de carga condicional: verificación de window.__mpAgentInitialized antes de adjuntar listeners -->
+    <script>
+      (function () {
+        // Función de vinculación segura: solo se ejecuta si window.__mpAgentInitialized existe
+        function attachAgentEventListeners() {
+          if (!window.__mpAgentInitialized) {
+            return false;
+          }
+
+          if (window.__mpListenersAttached) {
+            return true;
+          }
+          window.__mpListenersAttached = true;
+
+          // Escuchar cambios de autenticación para sincronizar privilegios de administrador de forma segura
+          window.addEventListener('mp-auth-changed', function (e) {
+            if (window.__mpAgentInitialized && typeof window.__mpUpdateAdminPrivileges === 'function') {
+              window.__mpUpdateAdminPrivileges(e && e.detail && e.detail.isAdmin);
+            }
+          });
+
+          // Escuchar actualizaciones de identidad o seudónimo del agente
+          window.addEventListener('mp-agent-identity-changed', function (e) {
+            if (window.__mpAgentInitialized && e && e.detail) {
+              console.log('[Master Pen Training] Sincronización de agente activa:', e.detail.name || e.detail);
+            }
+          });
+
+          // Notificación de listeners listos
+          try {
+            window.dispatchEvent(new CustomEvent('mp-listeners-ready', {
+              detail: { initialized: true, timestamp: Date.now() }
+            }));
+          } catch (_) {}
+
+          return true;
+        }
+
+        // Verificación condicional: Si el objeto __mpAgentInitialized ya está presente, adjuntar de inmediato
+        if (typeof window.__mpAgentInitialized === 'object' && window.__mpAgentInitialized !== null) {
+          attachAgentEventListeners();
+        } else {
+          // Si el script diferido/asíncrono aún se está descargando, aguardar al evento o a eventos de ciclo de vida del DOM
+          window.addEventListener('mp-agent-initialized', function () {
+            if (window.__mpAgentInitialized) {
+              attachAgentEventListeners();
+            }
+          }, { once: true });
+
+          document.addEventListener('DOMContentLoaded', function () {
+            if (window.__mpAgentInitialized) {
+              attachAgentEventListeners();
+            }
+          });
+
+          window.addEventListener('load', function () {
+            if (window.__mpAgentInitialized) {
+              attachAgentEventListeners();
+            }
+          });
+        }
+      })();
+    </script>
 
     <script type="module" src="/src/main.tsx"></script>
   </body>

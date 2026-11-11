@@ -318,7 +318,7 @@ export class VoiceAgent {
     speakNextSentence();
   }
 
-  public static stopSpeaking(notifyArbiter = true): void {
+  public static stopSpeaking(notifyArbiter = false): void {
     this.isSpeaking = false;
     if (this.currentAudio) {
       try {
@@ -334,7 +334,7 @@ export class VoiceAgent {
       } catch (_) {}
       this.activeUtterance = null;
     }
-    if (notifyArbiter) {
+    if (notifyArbiter && !MasterAudioArbiter.isKillingActive()) {
       MasterAudioArbiter.killAllAudio('voice_agent_manual_stop');
     }
   }

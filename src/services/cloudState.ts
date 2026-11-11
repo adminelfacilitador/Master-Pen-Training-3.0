@@ -14,7 +14,8 @@ import {
   CustomDynamicPage,
   AuditLogEntry,
   AuditActionType,
-  AuditSeverity
+  AuditSeverity,
+  LastReadPosition
 } from '../types';
 import { 
   INITIAL_USERS, 
@@ -104,6 +105,7 @@ class CloudStateEngine {
   private certificateTemplate: CertificateTemplate = { ...INITIAL_CERTIFICATE_TEMPLATE };
   private storageAssets: CloudStorageAsset[] = [...INITIAL_STORAGE_ASSETS];
   private courseBlocks: CourseBlockData[] = [...QUIERO_SER_ESCRITOR_BLOCKS];
+  private lastReadPositions: Record<string, LastReadPosition> = {};
   
   // Real-time Dynamic Branding Images (Hot-replaced from PC or Mobile device)
   private brandingImages: BrandingImages = {
@@ -387,6 +389,16 @@ class CloudStateEngine {
   }
 
   // --- Auth & User Management (Module 1) ---
+  public static readonly AUTHORIZED_ADMIN_EMAILS: string[] = [
+    'vcapray@gmail.com',
+    'admin@masterpentraining.com'
+  ];
+
+  public isAuthorizedAdminEmail(email: string): boolean {
+    const norm = (email || '').toLowerCase().trim();
+    return CloudStateEngine.AUTHORIZED_ADMIN_EMAILS.some(adminEmail => adminEmail.toLowerCase() === norm);
+  }
+
   public getCurrentUser(): UserProfile | null {
     return this.currentUser;
   }
@@ -833,6 +845,47 @@ class CloudStateEngine {
     this.notify();
     this.persistAcademicStateToFirestore();
     return user;
+  }
+
+  // MÓDULO 6: Persistencia y Recuperación de la Posición de Lectura (Modo Enfoque)
+  public saveLastReadPosition(userId: string, position: LastReadPosition): void {
+    if (!userId) return;
+    const existing = this.getLastReadPosition(userId);
+    const accumulatedTime = (existing?.totalFocusTimeSeconds || 0) + (position.sessionDurationSeconds || 0);
+
+    const updated: LastReadPosition = {
+      ...position,
+      timestamp: position.timestamp || new Date().toISOString(),
+      totalFocusTimeSeconds: accumulatedTime
+    };
+
+    this.lastReadPositions[userId] = updated;
+
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(`mpt_last_read_position_${userId}`, JSON.stringify(updated));
+      }
+    } catch (_) {}
+
+    this.notify();
+  }
+
+  public getLastReadPosition(userId: string): LastReadPosition | null {
+    if (!userId) return null;
+    if (this.lastReadPositions[userId]) {
+      return this.lastReadPositions[userId];
+    }
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = localStorage.getItem(`mpt_last_read_position_${userId}`);
+        if (stored) {
+          const parsed = JSON.parse(stored) as LastReadPosition;
+          this.lastReadPositions[userId] = parsed;
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   // Record 100% exam pass and unlock next block

@@ -28,6 +28,7 @@ interface HeaderProps {
   onOpenAuthModal: () => void;
   onOpenImageModal: () => void;
   onOpenUserProfile?: () => void;
+  onOpenLoginGate?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -36,7 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onOpenAuthModal,
   onOpenImageModal,
-  onOpenUserProfile
+  onOpenUserProfile,
+  onOpenLoginGate
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -306,12 +308,29 @@ export const Header: React.FC<HeaderProps> = ({
                   Ciberseguridad & Conmutador de Roles
                 </p>
 
+                {/* Login Gate modal trigger */}
+                {onOpenLoginGate && (
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onOpenLoginGate();
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-[#171924] to-[#12141c] hover:border-[#d4af37] border border-zinc-700 transition cursor-pointer"
+                  >
+                    <span className="flex items-center space-x-2">
+                      <Compass className="w-4 h-4 text-[#d4af37]" />
+                      <span>Cambiar Cuenta / Pantalla de Login</span>
+                    </span>
+                    <span className="text-[9px] text-[#c5a059]">Login</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     setIsMenuOpen(false);
                     onOpenAuthModal();
                   }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 transition"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 transition cursor-pointer"
                 >
                   <span className="flex items-center space-x-2">
                     <KeyRound className="w-4 h-4 text-[#d4af37]" />

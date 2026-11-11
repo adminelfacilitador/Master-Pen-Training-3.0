@@ -137,17 +137,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
 
     const users = cloudState.getAllUsers();
+    const isAdmin = cloudState.isAuthorizedAdminEmail(emailToUse);
     // Validación unificada por correo (Cuentas Espejo sin conflicto de proveedor)
     let matchedUser = users.find(u => u.email.toLowerCase() === emailToUse);
 
-    // Si corresponde a un usuario con 2FA o Administrador Principal
-    if (matchedUser && (matchedUser.role === 'admin_principal' || matchedUser.is2FAEnabled)) {
+    // Si corresponde al Administrador Principal autorizado
+    if (isAdmin && matchedUser && matchedUser.is2FAEnabled) {
       setEmail(matchedUser.email);
       setStep('totp_phone');
       return;
     }
 
-    const displayName = targetName || matchedUser?.displayName || emailToUse.split('@')[0];
+    const displayName = targetName || matchedUser?.displayName || (isAdmin ? 'Michael Pen (Administrador)' : emailToUse.split('@')[0]);
 
     if (!matchedUser) {
       // Registro unificado automático en Firebase
@@ -157,15 +158,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         displayName: displayName,
         firstName: displayName.split(' ')[0] || displayName,
         lastName: displayName.split(' ').slice(1).join(' ') || '',
-        role: 'visitor',
-        is2FAEnabled: false,
+        role: isAdmin ? 'admin_principal' : 'visitor',
+        is2FAEnabled: isAdmin,
         argon2HashPreview: '$argon2id$v=19$m=65536,t=3,p=4$user_oauth_cloud_encrypted',
         enrolledDate: new Date().toISOString().split('T')[0],
-        isExemptFromPayment: false
+        isExemptFromPayment: isAdmin
       };
       cloudState.registerUser(matchedUser);
     } else {
-      // Enlace automático de credenciales (Seamless Mirror Link)
+      // Enlace automático de credenciales con rol protegido (solo admin autorizado accede a cms)
+      matchedUser = {
+        ...matchedUser,
+        role: isAdmin ? 'admin_principal' : (matchedUser.role === 'admin_principal' ? 'visitor' : matchedUser.role)
+      };
       cloudState.setCurrentUser(matchedUser);
     }
 

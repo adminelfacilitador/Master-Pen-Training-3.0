@@ -13,6 +13,22 @@ import { getAcademicBlocksForCourse, QUIERO_SER_ESCRITOR_BLOCKS } from './quiero
 export const INITIAL_USERS: UserProfile[] = [
   {
     uid: 'usr_admin_principal_01',
+    email: 'vcapray@gmail.com',
+    displayName: 'Michael Pen / Admin',
+    firstName: 'Michael',
+    lastName: 'Pen',
+    role: 'admin_principal',
+    is2FAEnabled: true,
+    totpSecret: 'JBSWY3DPEHPK3PXP',
+    argon2HashPreview: '$2b$12$e6c2a8f9d0e1b2c3d4e5f6',
+    enrolledDate: '2025-01-01',
+    isExemptFromPayment: true,
+    photoUrl: BRANDING.portrait,
+    coverPhotoUrl: BRANDING.banner,
+    residenceCity: 'Panamá'
+  },
+  {
+    uid: 'usr_admin_principal_alias',
     email: 'admin@masterpentraining.com',
     displayName: 'Michael Pen',
     firstName: 'Michael',

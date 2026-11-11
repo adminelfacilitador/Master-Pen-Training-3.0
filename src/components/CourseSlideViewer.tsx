@@ -14,10 +14,11 @@ import {
   Compass
 } from 'lucide-react';
 import { QUIERO_SER_ESCRITOR_BLOCKS, CourseSlide, CourseBlockData } from '../data/quieroSerEscritorCourse';
+import { cloudState } from '../services/cloudState';
 import { VoiceAgent } from '../services/voiceAgent';
 import { MasterAudioArbiter } from '../services/audioArbiter';
-import { cloudState } from '../services/cloudState';
 import { FocusModeReader } from './FocusModeReader';
+import { ParchmentReader } from './ParchmentReader';
 
 interface CourseSlideViewerProps {
   currentBlockId: string;
@@ -54,6 +55,7 @@ export const CourseSlideViewer: React.FC<CourseSlideViewerProps> = ({
   const [useMichaelPenFormat, setUseMichaelPenFormat] = useState(true);
   const [isPrologueDimmed, setIsPrologueDimmed] = useState(false);
   const [isFocusReaderOpen, setIsFocusReaderOpen] = useState(false);
+  const [isParchmentOpen, setIsParchmentOpen] = useState(false);
 
   const branding = cloudState.getBrandingImages();
   const currentSlide: CourseSlide = activeBlock.slides[slideIndex] || activeBlock.slides[0];
@@ -338,6 +340,21 @@ export const CourseSlideViewer: React.FC<CourseSlideViewerProps> = ({
               <span className="hidden sm:inline">Modo Enfoque</span>
             </button>
 
+            {/* Modo Lectura: Fondo pergamino literario y tipografía clásica */}
+            <button
+              type="button"
+              onClick={() => {
+                VoiceAgent.stopSpeaking(false);
+                setIsNarrating(false);
+                setIsParchmentOpen(true);
+              }}
+              className="px-3.5 py-1.5 rounded-xl border border-[#c5a059]/60 bg-gradient-to-r from-[#e8dcbf]/20 via-[#c5a059]/25 to-[#8b5a2b]/25 hover:from-[#e8dcbf]/35 hover:to-[#8b5a2b]/40 text-[#f5e2a3] hover:text-white text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer shadow-[0_0_12px_rgba(197,160,89,0.25)]"
+              title="Activar Modo Lectura: Oculta los elementos de la interfaz, aplica un fondo tipo pergamino y ajusta la tipografía para mejorar la concentración"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#d4af37]" />
+              <span className="hidden sm:inline">Modo Lectura</span>
+            </button>
+
             {/* Narrator Voice Button (Host Michael Pen) */}
             <button
               type="button"
@@ -508,6 +525,14 @@ export const CourseSlideViewer: React.FC<CourseSlideViewerProps> = ({
         activeBlock={activeBlock}
         initialSlideIndex={slideIndex}
         brandingPortrait={branding.portrait}
+      />
+
+      {/* Visualizador Modo Lectura: Fondo Pergamino Literario */}
+      <ParchmentReader
+        isOpen={isParchmentOpen}
+        onClose={() => setIsParchmentOpen(false)}
+        activeBlock={activeBlock}
+        initialSlideIndex={slideIndex}
       />
     </div>
   );

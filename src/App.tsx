@@ -14,6 +14,8 @@ import { VisitorPaywall } from './components/VisitorPaywall';
 import { AuthModal } from './components/AuthModal';
 import { ImageUploadModal, UploadCategory } from './components/ImageUploadModal';
 import { UserProfileModal } from './components/UserProfileModal';
+import { WelcomeSplashScreen } from './components/WelcomeSplashScreen';
+import { LoginGateModal } from './components/LoginGateModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { cloudState, BrandingImages } from './services/cloudState';
 import { SecurityShield } from './services/securityShield';
@@ -27,6 +29,8 @@ const AdminCMS = lazy(() => import('./components/AdminCMS').then(m => ({ default
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => cloudState.getCurrentUser());
   const [activeTab, setActiveTab] = useState<'ecosystem' | 'curriculum' | 'exam' | 'certificate' | 'cms'>('ecosystem');
+  const [isWelcomeSplashActive, setIsWelcomeSplashActive] = useState<boolean>(true);
+  const [isLoginGateActive, setIsLoginGateActive] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
   const [selectedUploadCategory, setSelectedUploadCategory] = useState<UploadCategory>('studioCreationsLogo');
@@ -69,10 +73,16 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const rawHash = (window.location.hash || '').replace('#', '').toLowerCase();
-      if (['ecosystem', 'curriculum', 'exam', 'certificate', 'cms'].includes(rawHash)) {
+      if (['ecosystem', 'curriculum', 'exam', 'certificate'].includes(rawHash)) {
         setActiveTab(rawHash as any);
-      } else if (rawHash === 'admin') {
-        setActiveTab('cms');
+      } else if (rawHash === 'cms' || rawHash === 'admin') {
+        const u = cloudState.getCurrentUser();
+        const userIsAdmin = u?.role === 'admin_principal' || u?.role === 'admin_vip_tester';
+        if (userIsAdmin) {
+          setActiveTab('cms');
+        } else {
+          setActiveTab('ecosystem');
+        }
       }
     };
 
@@ -82,7 +92,13 @@ export default function App() {
   }, []);
 
   const handleTabChange = (tab: 'ecosystem' | 'curriculum' | 'exam' | 'certificate' | 'cms') => {
-    if (isVisitor && (tab === 'curriculum' || tab === 'exam' || tab === 'certificate')) {
+    // Si intenta acceder al panel administrador y no cuenta con credenciales autorizadas, denegar acceso
+    if (tab === 'cms' && !isAdmin) {
+      setActiveTab('ecosystem');
+      return;
+    }
+    // El Modo Explorador y visitantes tienen acceso libre garantizado a las cátedras y cursos
+    if (isVisitor && (tab === 'exam' || tab === 'certificate')) {
       setIsOfferModalOpen(true);
       return;
     }
@@ -119,6 +135,29 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0c0d10] text-[#e6e6e8] flex flex-col font-sans selection:bg-[#c5a059]/30 selection:text-[#f5e2a3]">
       
+      {/* 1. PANTALLA DE BIENVENIDA INICIAL (10s con voz de Michael Pen y bloqueo total de pantalla) */}
+      <WelcomeSplashScreen
+        isOpen={isWelcomeSplashActive}
+        onComplete={() => {
+          setIsWelcomeSplashActive(false);
+          setIsLoginGateActive(true);
+        }}
+      />
+
+      {/* 2. PANTALLA DE LOGIN OBLIGATORIA TRAS SALUDO INICIAL */}
+      <LoginGateModal
+        isOpen={isLoginGateActive}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          setIsLoginGateActive(false);
+          if (user.role === 'admin_principal' || user.role === 'admin_vip_tester') {
+            handleTabChange('cms');
+          } else {
+            handleTabChange('ecosystem');
+          }
+        }}
+      />
+
       {/* Top Navigation: Exclusively 1.5in logo, Big Title, and Dropdown on the right */}
       <Header
         currentUser={currentUser}
@@ -127,14 +166,15 @@ export default function App() {
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenImageModal={() => handleOpenImageUpload('logo')}
         onOpenUserProfile={() => setIsProfileModalOpen(true)}
+        onOpenLoginGate={() => setIsLoginGateActive(true)}
       />
 
       {/* Main Container protected with Root ErrorBoundary */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-12">
         <ErrorBoundary fallbackTitle="Ecosistema Master Pen">
           
-          {/* Module 1 & 4 Access Control: If Visitor attempts direct access to curriculum/exam/certificate */}
-          {isVisitor && (activeTab === 'curriculum' || activeTab === 'exam' || activeTab === 'certificate') ? (
+          {/* Module 1 & 4 Access Control: Exam or Certificate registration gate for visitors */}
+          {isVisitor && (activeTab === 'exam' || activeTab === 'certificate') ? (
             <VisitorPaywall
               onEnrollSuccess={() => {
                 handleTabChange('curriculum');
@@ -153,11 +193,7 @@ export default function App() {
               {activeTab === 'ecosystem' && (
                 <EcosystemPortal
                   onNavigateToAcademy={() => {
-                    if (isVisitor) {
-                      setIsOfferModalOpen(true);
-                    } else {
-                      handleTabChange('curriculum');
-                    }
+                    handleTabChange('curriculum');
                   }}
                   isAdmin={isAdmin}
                   onOpenImageModal={handleOpenImageUpload}

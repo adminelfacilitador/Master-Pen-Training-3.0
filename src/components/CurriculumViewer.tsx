@@ -30,9 +30,11 @@ import {
   Share2,
   Maximize2,
   Compass,
-  GraduationCap
+  GraduationCap,
+  Bookmark,
+  RotateCcw
 } from 'lucide-react';
-import { AcademicBlock, MediaResource, UserProfile } from '../types';
+import { AcademicBlock, MediaResource, UserProfile, LastReadPosition } from '../types';
 import { cloudState, BrandingImages } from '../services/cloudState';
 import { SecurityShield } from '../services/securityShield';
 import { BRANDING } from '../assets/branding';
@@ -42,6 +44,7 @@ import { CourseSlideViewer } from './CourseSlideViewer';
 import { EscrituraCreativaViewer } from './EscrituraCreativaViewer';
 import { PomodoroTimer } from './PomodoroTimer';
 import { FocusModeReader } from './FocusModeReader';
+import { ParchmentReader } from './ParchmentReader';
 import { CourseBlockData, QUIERO_SER_ESCRITOR_BLOCKS } from '../data/quieroSerEscritorCourse';
 
 interface CurriculumViewerProps {
@@ -64,6 +67,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
   const [isExploreMenuOpen, setIsExploreMenuOpen] = useState<boolean>(false);
   const [learningMode, setLearningMode] = useState<'slides' | 'player'>('slides');
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
+  const [isParchmentMode, setIsParchmentMode] = useState<boolean>(false);
   const [activeResourceId, setActiveResourceId] = useState<string>('res_intro_00');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -78,28 +82,43 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
     block_03: false
   });
 
+  // Focus Mode metrics & last read position tracking
+  const [focusScrollPercentage, setFocusScrollPercentage] = useState<number>(0);
+  const [focusSessionDuration, setFocusSessionDuration] = useState<number>(0);
+  const [focusInitialSlideIndex, setFocusInitialSlideIndex] = useState<number>(0);
+  const [focusInitialScrollPct, setFocusInitialScrollPct] = useState<number>(0);
+  const [lastReadPosition, setLastReadPosition] = useState<LastReadPosition | null>(() => {
+    return cloudState.getLastReadPosition(currentUser?.uid || 'usr_admin_principal_01');
+  });
+
   const isAdmin = currentUser?.role === 'admin_principal' || currentUser?.role === 'admin_vip_tester';
 
   useEffect(() => {
     const unsub = cloudState.subscribe(() => {
       setBranding(cloudState.getBrandingImages());
       setBlocks(cloudState.getBlocks());
+      const effectiveUid = currentUser?.uid || 'usr_admin_principal_01';
+      setLastReadPosition(cloudState.getLastReadPosition(effectiveUid));
     });
     return () => unsub();
-  }, []);
+  }, [currentUser]);
+
+  const handleResumeLastRead = () => {
+    const effectiveUid = currentUser?.uid || 'usr_admin_principal_01';
+    const saved = lastReadPosition || cloudState.getLastReadPosition(effectiveUid);
+    if (!saved) return;
+    setSelectedCourse('quiero_ser_escritor');
+    setSelectedBlockId(saved.blockId);
+    setFocusInitialSlideIndex(saved.slideIndex || 0);
+    setFocusInitialScrollPct(saved.scrollPercentage || 0);
+    setIsFocusMode(true);
+  };
   
   // Track completed lessons in cloud state / memory
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>(['res_intro_00']);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const introResource = cloudState.getIntroResource();
-
-  useEffect(() => {
-    const unsub = cloudState.subscribe(() => {
-      setBlocks(cloudState.getBlocks());
-    });
-    return () => unsub();
-  }, []);
 
   // Find active resource and block
   let activeResource: MediaResource = introResource;
@@ -168,7 +187,8 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
 
   const isLocked = currentBlockObj ? currentBlockObj.isLockedForStudent : false;
   const isVisitor = currentUser?.role === 'visitor';
-  const isBlockedByPaywall = isVisitor && !activeResource.previewFree;
+  // En Modo Explorador, los usuarios gozan de acceso libre para explorar los cursos y cátedras
+  const isBlockedByPaywall = false;
 
   // Calculate total course completion %
   const totalLessonsCount = allLessons.length;
@@ -197,6 +217,19 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       
+      {/* Barra sutil de progreso por desplazamiento fijada en la parte superior durante sesiones en Modo Enfoque */}
+      {isFocusMode && (
+        <div 
+          className="fixed top-0 inset-x-0 z-[1000002] h-[3px] bg-black/70 pointer-events-none"
+          title="Progreso de lectura en Modo Enfoque"
+        >
+          <div 
+            className="h-full bg-gradient-to-r from-[#856524] via-[#d4af37] to-[#f5e2a3] transition-all duration-150 ease-out shadow-[0_0_12px_rgba(212,175,55,0.85)]"
+            style={{ width: `${focusScrollPercentage}%` }}
+          />
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* ENTORNO SUPERIOR DE LA ACADEMIA: LOGOTIPO SOBRESALIENTE MASTER PEN TRAINING */}
       {/* ========================================================================= */}
@@ -470,6 +503,17 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-[#d4af37] animate-pulse group-hover:scale-110 transition-transform" />
               <span>Modo Enfoque</span>
             </button>
+
+            {/* Botón Modo Lectura: Fondo tipo pergamino y tipografía literaria */}
+            <button
+              type="button"
+              onClick={() => setIsParchmentMode(true)}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer bg-gradient-to-r from-[#e8dcbf]/20 via-[#c5a059]/25 to-[#8b5a2b]/25 hover:from-[#e8dcbf]/35 hover:to-[#8b5a2b]/40 border border-[#c5a059] text-[#f5e2a3] hover:text-white shadow-[0_0_12px_rgba(197,160,89,0.3)] hover:shadow-[0_0_20px_rgba(197,160,89,0.5)] group"
+              title="Activar Modo Lectura: Oculta los elementos de la interfaz, aplica un fondo tipo pergamino y ajusta la tipografía para mejorar la concentración"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#d4af37] group-hover:scale-110 transition-transform" />
+              <span>Modo Lectura</span>
+            </button>
           </div>
 
           {/* Course Progress Widget */}
@@ -491,6 +535,55 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
         </div>
       </div>
 
+      {/* Tarjeta de Reanudación de Lectura (Last Read Position & Focus Mode Resume) */}
+      {lastReadPosition && (
+        <div className="bg-gradient-to-r from-[#171924] via-[#10121b] to-[#171926] border border-[#d4af37]/50 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in">
+          <div className="flex items-start sm:items-center space-x-3.5">
+            <div className="p-3 rounded-2xl bg-[#d4af37]/15 border border-[#d4af37]/40 text-[#f5e2a3] shadow-[0_0_15px_rgba(212,175,55,0.25)] shrink-0">
+              <Bookmark className="w-5 h-5 text-[#d4af37]" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#d4af37] font-bold">
+                  Última posición guardada
+                </span>
+                <span className="text-zinc-600">•</span>
+                <span className="text-[10px] font-mono text-zinc-300 bg-black/60 px-2 py-0.5 rounded border border-zinc-800">
+                  {lastReadPosition.scrollPercentage}% leído
+                </span>
+                {typeof lastReadPosition.sessionDurationSeconds === 'number' && lastReadPosition.sessionDurationSeconds > 0 && (
+                  <>
+                    <span className="text-zinc-600">•</span>
+                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+                      <Clock className="w-3 h-3 inline" />
+                      <span>{Math.max(1, Math.round(lastReadPosition.sessionDurationSeconds / 60))} min en foco</span>
+                    </span>
+                  </>
+                )}
+              </div>
+              <h3 className="text-sm sm:text-base font-bold font-serif-gold text-white">
+                {lastReadPosition.blockTitle}: <span className="text-[#f5e2a3]">{lastReadPosition.slideTitle}</span>
+              </h3>
+              <p className="text-[11px] text-zinc-400 font-light">
+                Puedes retomar tu lectura exactamente en el punto donde la dejaste con desplazamiento y lección sincronizados.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2.5 w-full sm:w-auto justify-end shrink-0">
+            <button
+              type="button"
+              onClick={handleResumeLastRead}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#856524] hover:brightness-110 text-black font-extrabold text-xs tracking-wider transition flex items-center justify-center space-x-2 shadow-[0_0_15px_rgba(212,175,55,0.35)] cursor-pointer"
+              title="Continuar lectura desde donde la dejaste en Modo Enfoque"
+            >
+              <RotateCcw className="w-4 h-4 text-black" />
+              <span>Reanudar Lectura</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Contador Pomodoro: Bloques de Enfoque Intelectual (25 min Lectura / 5 min Descanso) */}
       <PomodoroTimer className="mb-6" />
 
@@ -501,12 +594,25 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
         const activeCourseBlock = courseBlocksList.find(b => b.id === currentCourseBlockId) || courseBlocksList[0] || QUIERO_SER_ESCRITOR_BLOCKS[0];
         
         return (
-          <FocusModeReader
-            isOpen={isFocusMode}
-            onClose={() => setIsFocusMode(false)}
-            activeBlock={activeCourseBlock}
-            brandingPortrait={branding.portrait}
-          />
+          <>
+            <FocusModeReader
+              isOpen={isFocusMode}
+              onClose={() => setIsFocusMode(false)}
+              activeBlock={activeCourseBlock}
+              initialSlideIndex={focusInitialSlideIndex}
+              initialScrollPercentage={focusInitialScrollPct}
+              brandingPortrait={branding.portrait}
+              onScrollPercentageChange={(pct) => setFocusScrollPercentage(pct)}
+              onSessionDurationChange={(sec) => setFocusSessionDuration(sec)}
+            />
+
+            <ParchmentReader
+              isOpen={isParchmentMode}
+              onClose={() => setIsParchmentMode(false)}
+              activeBlock={activeCourseBlock}
+              initialSlideIndex={focusInitialSlideIndex}
+            />
+          </>
         );
       })()}
 

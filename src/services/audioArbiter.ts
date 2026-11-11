@@ -47,91 +47,105 @@ export class MasterAudioArbiter {
     });
   }
 
+  private static isKilling = false;
+
+  public static isKillingActive(): boolean {
+    return this.isKilling;
+  }
+
   /**
    * Silencia y extermina instantáneamente cualquier flujo de audio, síntesis o petición de voz en curso.
+   * Cuenta con bloqueo atómico contra re-entrancia para evitar bucles recursivos entre agentes.
    */
   public static killAllAudio(sourceReason: string): void {
-    this.epoch++;
-    this.activeSource = null;
+    if (this.isKilling) return;
+    this.isKilling = true;
 
-    // 1. Cancelar cualquier petición HTTP /api/tts/speak en curso
-    if (this.activeAbortCtrl) {
-      try {
-        this.activeAbortCtrl.abort();
-      } catch (_) {}
-      this.activeAbortCtrl = null;
-    }
+    try {
+      this.epoch++;
+      this.activeSource = null;
 
-    // 2. Detener y destruir el elemento HTMLAudio activo
-    if (this.activeAudio) {
-      try {
-        this.activeAudio.pause();
-        this.activeAudio.currentTime = 0;
-        this.activeAudio.src = '';
-        this.activeAudio.onended = null;
-        this.activeAudio.onerror = null;
-      } catch (_) {}
-      this.activeAudio = null;
-    }
+      // 1. Cancelar cualquier petición HTTP /api/tts/speak en curso
+      if (this.activeAbortCtrl) {
+        try {
+          this.activeAbortCtrl.abort();
+        } catch (_) {}
+        this.activeAbortCtrl = null;
+      }
 
-    // 3. Pausar todos los tags <audio> en el DOM
-    if (typeof document !== 'undefined') {
-      try {
-        document.querySelectorAll('audio').forEach((el) => {
+      // 2. Detener y destruir el elemento HTMLAudio activo
+      if (this.activeAudio) {
+        try {
+          this.activeAudio.pause();
+          this.activeAudio.currentTime = 0;
+          this.activeAudio.src = '';
+          this.activeAudio.onended = null;
+          this.activeAudio.onerror = null;
+        } catch (_) {}
+        this.activeAudio = null;
+      }
+
+      // 3. Pausar todos los tags <audio> en el DOM
+      if (typeof document !== 'undefined') {
+        try {
+          document.querySelectorAll('audio').forEach((el) => {
+            try {
+              el.pause();
+              el.currentTime = 0;
+            } catch (_) {}
+          });
+        } catch (_) {}
+
+        // Retirar clase visual animada de Michael Pen
+        try {
+          document.querySelectorAll('.mp-avatar-container').forEach((el) => {
+            el.classList.remove('mp-speaking');
+          });
+        } catch (_) {}
+      }
+
+      // 4. Cancelar agresivamente Web Speech API
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          // Segundo pase asíncrono para navegadores con buffer de síntesis atascado
+          setTimeout(() => {
+            try {
+              if (window.speechSynthesis && window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+              }
+            } catch (_) {}
+          }, 60);
+        } catch (_) {}
+      }
+
+      // 5. Notificar a VoiceAgent y SpeechEngine explícitamente sin re-notificar al árbitro
+      if (typeof window !== 'undefined') {
+        if ((window as any).VoiceAgent && typeof (window as any).VoiceAgent.stopSpeaking === 'function') {
           try {
-            el.pause();
-            el.currentTime = 0;
+            (window as any).VoiceAgent.stopSpeaking(false);
           } catch (_) {}
-        });
-      } catch (_) {}
-
-      // Retirar clase visual animada de Michael Pen
-      try {
-        document.querySelectorAll('.mp-avatar-container').forEach((el) => {
-          el.classList.remove('mp-speaking');
-        });
-      } catch (_) {}
-    }
-
-    // 4. Cancelar agresivamente Web Speech API
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      try {
-        window.speechSynthesis.cancel();
-        // Segundo pase asíncrono para navegadores con buffer de síntesis atascado
-        setTimeout(() => {
+        }
+        if ((window as any).SpeechEngine && typeof (window as any).SpeechEngine.stop === 'function') {
           try {
-            if (window.speechSynthesis && window.speechSynthesis.speaking) {
-              window.speechSynthesis.cancel();
-            }
+            (window as any).SpeechEngine.stop(false);
           } catch (_) {}
-        }, 60);
-      } catch (_) {}
-    }
+        }
+        if ((window as any).UniversalAgent && typeof (window as any).UniversalAgent.stop === 'function') {
+          try {
+            (window as any).UniversalAgent.stop();
+          } catch (_) {}
+        }
 
-    // 5. Notificar a VoiceAgent y SpeechEngine si están definidos
-    if (typeof window !== 'undefined') {
-      if ((window as any).VoiceAgent && typeof (window as any).VoiceAgent.stopSpeaking === 'function') {
+        // 6. Emitir evento sincronizado para componentes React
         try {
-          (window as any).VoiceAgent.stopSpeaking();
+          window.dispatchEvent(new CustomEvent('mp-master-audio-silence', {
+            detail: { source: 'arbiter_internal', reason: sourceReason, epoch: this.epoch }
+          }));
         } catch (_) {}
       }
-      if ((window as any).SpeechEngine && typeof (window as any).SpeechEngine.stop === 'function') {
-        try {
-          (window as any).SpeechEngine.stop();
-        } catch (_) {}
-      }
-      if ((window as any).UniversalAgent && typeof (window as any).UniversalAgent.stop === 'function') {
-        try {
-          (window as any).UniversalAgent.stop();
-        } catch (_) {}
-      }
-
-      // 6. Emitir evento sincronizado para componentes React
-      try {
-        window.dispatchEvent(new CustomEvent('mp-master-audio-silence', {
-          detail: { source: 'arbiter_internal', reason: sourceReason, epoch: this.epoch }
-        }));
-      } catch (_) {}
+    } finally {
+      this.isKilling = false;
     }
   }
 

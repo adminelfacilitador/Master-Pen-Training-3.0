@@ -12,19 +12,26 @@ import {
   Award, 
   Eye, 
   Maximize2,
-  CheckCircle2
+  CheckCircle2,
+  Clock,
+  Bookmark,
+  RotateCcw
 } from 'lucide-react';
 import { CourseBlockData, CourseSlide } from '../data/quieroSerEscritorCourse';
 import { VoiceAgent } from '../services/voiceAgent';
 import { MasterAudioArbiter } from '../services/audioArbiter';
+import { useFocusTracking } from '../hooks/useFocusTracking';
 
 interface FocusModeReaderProps {
   isOpen: boolean;
   onClose: () => void;
   activeBlock: CourseBlockData;
   initialSlideIndex?: number;
+  initialScrollPercentage?: number;
   brandingPortrait?: string;
   onBlockChange?: (blockId: string) => void;
+  onScrollPercentageChange?: (percentage: number) => void;
+  onSessionDurationChange?: (seconds: number) => void;
 }
 
 export const FocusModeReader: React.FC<FocusModeReaderProps> = ({
@@ -32,8 +39,11 @@ export const FocusModeReader: React.FC<FocusModeReaderProps> = ({
   onClose,
   activeBlock,
   initialSlideIndex = 0,
+  initialScrollPercentage,
   brandingPortrait,
-  onBlockChange
+  onBlockChange,
+  onScrollPercentageChange,
+  onSessionDurationChange
 }) => {
   const [slideIndex, setSlideIndex] = useState(initialSlideIndex);
   const [isNarrating, setIsNarrating] = useState(false);
@@ -42,6 +52,7 @@ export const FocusModeReader: React.FC<FocusModeReaderProps> = ({
   const [completedNotice, setCompletedNotice] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollMainRef = useRef<HTMLElement | null>(null);
 
   // Sync initial slide index when opened
   useEffect(() => {
@@ -53,6 +64,54 @@ export const FocusModeReader: React.FC<FocusModeReaderProps> = ({
 
   const currentSlide: CourseSlide = activeBlock.slides[slideIndex] || activeBlock.slides[0];
   const isLastSlide = slideIndex === activeBlock.slides.length - 1;
+
+  // Hook de seguimiento del Modo Enfoque (duración, progreso por scroll y guardado de posición)
+  const {
+    sessionDuration,
+    formattedDuration,
+    scrollPercentage,
+    lastSavedPosition,
+    saveCurrentPosition,
+    restoreScrollPosition
+  } = useFocusTracking({
+    isActive: isOpen,
+    blockId: activeBlock.id,
+    blockTitle: activeBlock.title,
+    slideIndex,
+    slideTitle: currentSlide?.title,
+    scrollContainerRef: scrollMainRef
+  });
+
+  // Notificar al componente padre sobre la progresión de scroll y duración de la sesión
+  useEffect(() => {
+    if (onScrollPercentageChange) {
+      onScrollPercentageChange(scrollPercentage);
+    }
+  }, [scrollPercentage, onScrollPercentageChange]);
+
+  useEffect(() => {
+    if (onSessionDurationChange) {
+      onSessionDurationChange(sessionDuration);
+    }
+  }, [sessionDuration, onSessionDurationChange]);
+
+  // Si se provee una posición previa o porcentaje de scroll al abrir, restaurar la vista
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        if (typeof initialScrollPercentage === 'number' && initialScrollPercentage > 0 && scrollMainRef.current) {
+          const el = scrollMainRef.current;
+          const maxScroll = el.scrollHeight - el.clientHeight;
+          if (maxScroll > 0) {
+            el.scrollTo({ top: (initialScrollPercentage / 100) * maxScroll, behavior: 'smooth' });
+          }
+        } else {
+          restoreScrollPosition();
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, initialScrollPercentage, restoreScrollPosition]);
 
   // Iniciar la narrativa del anfitrión Michael Pen
   const startNarration = () => {
@@ -195,6 +254,14 @@ export const FocusModeReader: React.FC<FocusModeReaderProps> = ({
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-64 bg-[#d4af37]/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-[#856524]/5 rounded-full blur-[100px] pointer-events-none" />
 
+      {/* Barra sutil de progreso por desplazamiento integrada en la parte superior del Modo Enfoque */}
+      <div className="absolute top-0 inset-x-0 h-[3px] bg-black/60 z-50 pointer-events-none">
+        <div 
+          className="h-full bg-gradient-to-r from-[#856524] via-[#d4af37] to-[#f5e2a3] transition-all duration-150 ease-out shadow-[0_0_10px_rgba(212,175,55,0.8)]"
+          style={{ width: `${scrollPercentage}%` }}
+        />
+      </div>
+
       {/* ========================================================================= */}
       {/* 1. BARRA SUPERIOR DE CONCENTRACIÓN (MINIMALISTA) */}
       {/* ========================================================================= */}
@@ -213,9 +280,20 @@ export const FocusModeReader: React.FC<FocusModeReaderProps> = ({
           </div>
         </div>
 
-        {/* Acciones de Cabecera: Tamaño de fuente, Voz & Salida */}
+        {/* Acciones de Cabecera: Métricas de Sesión, Tamaño de fuente, Voz & Salida */}
         <div className="flex items-center space-x-2 sm:space-x-3">
           
+          {/* Chip de duración de sesión y avance de scroll */}
+          <div 
+            className="flex items-center space-x-2 text-[11px] font-mono text-zinc-300 bg-black/60 px-2.5 py-1 rounded-lg border border-[#c5a059]/30"
+            title="Tiempo en Modo Enfoque y avance por desplazamiento"
+          >
+            <Clock className="w-3.5 h-3.5 text-[#d4af37]" />
+            <span className="font-semibold">{formattedDuration}</span>
+            <span className="text-zinc-600 hidden xs:inline">•</span>
+            <span className="text-[#f5e2a3] font-bold hidden xs:inline">{scrollPercentage}%</span>
+          </div>
+
           {/* Ajuste de Tamaño de Lectura */}
           <button
             type="button"
@@ -279,7 +357,10 @@ export const FocusModeReader: React.FC<FocusModeReaderProps> = ({
       {/* ========================================================================= */}
       {/* 2. ESPACIO CENTRAL DE LECTURA Y ASIMILACIÓN PROFUNDA */}
       {/* ========================================================================= */}
-      <main className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-6 md:px-12 py-6 sm:py-10 max-w-4xl mx-auto w-full scrollbar-thin">
+      <main 
+        ref={scrollMainRef as React.RefObject<HTMLElement>} 
+        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-6 md:px-12 py-6 sm:py-10 max-w-4xl mx-auto w-full scrollbar-thin"
+      >
         
         {/* Aviso de Culminación de Lectura */}
         {completedNotice && (

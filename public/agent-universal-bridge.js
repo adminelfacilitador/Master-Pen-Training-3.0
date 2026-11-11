@@ -120,13 +120,16 @@
         for (const endpoint of ttsEndpoints) {
           if (!isCurrentTurn()) return;
           try {
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timeoutId = controller ? setTimeout(() => controller.abort(), 3500) : null;
             const fetchOpts = {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ text, voice: 'Charon' })
             };
-            if (track.signal) fetchOpts.signal = track.signal;
+            if (controller) fetchOpts.signal = controller.signal;
             const res = await fetch(endpoint, fetchOpts);
+            if (timeoutId) clearTimeout(timeoutId);
             if (res.ok) {
               const data = await res.json();
               if (data && data.audioBase64) {
@@ -221,15 +224,17 @@
       const avatars = document.querySelectorAll('.mp-avatar-container');
       avatars.forEach(el => el.classList.remove('mp-speaking'));
 
-      if (notifyArbiter) {
+      if (notifyArbiter === true) {
         const arbiter = getArbiter();
-        if (arbiter) arbiter.killAllAudio('speech_engine_stop');
+        if (arbiter && typeof arbiter.isKillingActive === 'function' && !arbiter.isKillingActive()) {
+          arbiter.killAllAudio('speech_engine_stop');
+        }
       }
     },
 
     toggleMute: function () {
       isVoiceMuted = !isVoiceMuted;
-      if (isVoiceMuted) this.stop(true);
+      if (isVoiceMuted) this.stop(false);
       return isVoiceMuted;
     }
   };
@@ -248,13 +253,36 @@
     openControlPanel: function () { if (window.__mpOpenPanel) window.__mpOpenPanel(); },
     closeControlPanel: function () { if (window.__mpClosePanel) window.__mpClosePanel(); },
     speak: function (t) { SpeechEngine.speak(t); },
-    stop: function () { SpeechEngine.stop(true); },
+    stop: function () { SpeechEngine.stop(false); },
     get ecosystem() { return ecosystemRaw; },
     get role() { return agentRole; },
     get origin() { return masterOrigin; },
     isReady: true
   };
   window.MichaelPenAgent = window.UniversalAgent;
+
+  // Objeto oficial de inicialización del agente para validación condicional externa
+  window.__mpAgentInitialized = {
+    isReady: true,
+    version: '3.5 Enterprise Universal Bridge',
+    loadedAt: new Date().toISOString(),
+    ecosystem: ecosystemRaw,
+    agentDisplayName: agentDisplayName,
+    agentRole: agentRole,
+    get origin() { return masterOrigin; },
+    open: function (force) { if (window.__mpToggle) window.__mpToggle(force); },
+    close: function () { if (window.__mpToggle) window.__mpToggle(false); },
+    toggle: function () { if (window.__mpToggle) window.__mpToggle(); }
+  };
+
+  // Notificar al entorno que el agente fue inicializado exitosamente
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    try {
+      window.dispatchEvent(new CustomEvent('mp-agent-initialized', {
+        detail: window.__mpAgentInitialized
+      }));
+    } catch (_) {}
+  }
 
   // Escuchar orden global de silenciamiento para detener SpeechEngine si otro módulo habla
   if (typeof window !== 'undefined') {
@@ -627,27 +655,33 @@
 
     // Métodos globales
     window.__mpToggle = function (forceState) {
-      const isVisible = chatWindow.style.display === 'flex';
-      const targetState = typeof forceState === 'boolean' ? forceState : !isVisible;
+      try {
+        const isVisible = chatWindow.style.display === 'flex';
+        const targetState = typeof forceState === 'boolean' ? forceState : !isVisible;
 
-      // REGLA FUNDAMENTAL: Al abrir el chat o alterar su estado se fulmina toda voz o narrativa en off
-      const arbiter = getArbiter();
-      if (arbiter) {
-        arbiter.killAllAudio('chat_toggle');
-      } else {
-        SpeechEngine.stop(false);
-        if (window.VoiceAgent && typeof window.VoiceAgent.stopSpeaking === 'function') {
-          try { window.VoiceAgent.stopSpeaking(false); } catch (_) {}
+        // REGLA FUNDAMENTAL: Al abrir el chat o alterar su estado se fulmina toda voz o narrativa en off
+        const arbiter = getArbiter();
+        if (arbiter && typeof arbiter.killAllAudio === 'function') {
+          arbiter.killAllAudio('chat_toggle');
+        } else {
+          SpeechEngine.stop(false);
+          if (window.VoiceAgent && typeof window.VoiceAgent.stopSpeaking === 'function') {
+            try { window.VoiceAgent.stopSpeaking(false); } catch (_) {}
+          }
+          if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('mp-silence-all-narration', { detail: { source: 'chat_toggle_open' } }));
+          }
         }
-        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-          window.dispatchEvent(new CustomEvent('mp-silence-all-narration', { detail: { source: 'chat_toggle_open' } }));
-        }
-      }
 
-      chatWindow.style.display = targetState ? 'flex' : 'none';
-      if (targetState) {
-        chatInput.focus();
-        updateAdminPanelVisibility();
+        chatWindow.style.display = targetState ? 'flex' : 'none';
+        if (targetState) {
+          setTimeout(() => {
+            try { chatInput.focus(); } catch (_) {}
+          }, 60);
+          updateAdminPanelVisibility();
+        }
+      } catch (err) {
+        console.error('[Michael Pen Bridge] Error en toggle de ventana de chat:', err);
       }
     };
 
@@ -688,43 +722,67 @@
       }
     });
 
-    // Listeners de botones con silenciamiento preventivo inmediato
-    btnToggle.addEventListener('click', () => {
-      const arbiter = getArbiter();
-      if (arbiter) arbiter.killAllAudio('avatar_button_click');
-      window.__mpToggle();
-    });
-    btnClose.addEventListener('click', () => {
-      const arbiter = getArbiter();
-      if (arbiter) arbiter.killAllAudio('chat_close_click');
-      window.__mpToggle(false);
-    });
-    chatInput.addEventListener('focus', () => {
-      const arbiter = getArbiter();
-      if (arbiter) arbiter.killAllAudio('chat_input_focus');
-    });
-    btnPanel.addEventListener('click', () => window.__mpOpenPanel());
-    panelCloseBtn.addEventListener('click', () => window.__mpClosePanel());
+    // Listeners de botones con detención limpia de propagación y verificación condicional
+    if (btnToggle) {
+      btnToggle.addEventListener('click', (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        window.__mpToggle();
+      });
+    }
 
-    panelSaveBtn.addEventListener('click', () => {
-      const [name, role] = panelRoleSelect.value.split('|');
-      agentDisplayName = name;
-      agentRole = role;
-      headerName.textContent = name;
-      headerRole.textContent = role;
-      chatInput.placeholder = `Pregunta a ${name}...`;
-      window.__mpClosePanel();
-      window.dispatchEvent(new CustomEvent('mp-agent-identity-changed', { detail: { name, role } }));
-      appendMessage('agent', `Identidad actualizada a ${name} (${role}). ¿En qué puedo orientarle?`);
-    });
+    if (btnClose) {
+      btnClose.addEventListener('click', (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        window.__mpToggle(false);
+      });
+    }
+
+    if (chatInput) {
+      chatInput.addEventListener('focus', () => {
+        const arbiter = getArbiter();
+        if (arbiter && typeof arbiter.killAllAudio === 'function') {
+          arbiter.killAllAudio('chat_input_focus');
+        }
+      });
+    }
+
+    if (btnPanel) {
+      btnPanel.addEventListener('click', () => window.__mpOpenPanel());
+    }
+
+    if (panelCloseBtn) {
+      panelCloseBtn.addEventListener('click', () => window.__mpClosePanel());
+    }
+
+    if (panelSaveBtn) {
+      panelSaveBtn.addEventListener('click', () => {
+        const [name, role] = panelRoleSelect.value.split('|');
+        agentDisplayName = name;
+        agentRole = role;
+        headerName.textContent = name;
+        headerRole.textContent = role;
+        chatInput.placeholder = `Pregunta a ${name}...`;
+        window.__mpClosePanel();
+        window.dispatchEvent(new CustomEvent('mp-agent-identity-changed', { detail: { name, role } }));
+        appendMessage('agent', `Identidad actualizada a ${name} (${role}). ¿En qué puedo orientarle?`);
+      });
+    }
 
     // Inicializar visibilidad según credenciales
     updateAdminPanelVisibility();
 
-    btnMute.addEventListener('click', () => {
-      const muted = SpeechEngine.toggleMute();
-      btnMute.textContent = muted ? '🔇' : '🔊';
-    });
+    if (btnMute) {
+      btnMute.addEventListener('click', () => {
+        const muted = SpeechEngine.toggleMute();
+        btnMute.textContent = muted ? '🔇' : '🔊';
+      });
+    }
 
     const conversationHistory = [];
 
@@ -759,16 +817,19 @@
         return;
       }
 
-      // 2. Consulta al Cerebro de la Mansión (Endpoint Local y Matriz Central)
+      // 2. Consulta al Cerebro de la Mansión con Timeout estricto de 4s
       try {
         const endpoints = ['/api/chat', `${masterOrigin}/api/chat`];
         let replyData = null;
 
         for (const ep of endpoints) {
           try {
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
             const res = await fetch(ep, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              signal: controller ? controller.signal : undefined,
               body: JSON.stringify({
                 message: text,
                 ecosystem: ecosystemRaw,
@@ -776,6 +837,7 @@
                 history: conversationHistory.slice(-10)
               })
             });
+            if (timeoutId) clearTimeout(timeoutId);
 
             if (res.ok) {
               const data = await res.json();
@@ -818,10 +880,18 @@
       appendMessage('agent', fallbackReply);
     }
 
-    btnSend.addEventListener('click', handleSendMessage);
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleSendMessage();
-    });
+    if (btnSend) {
+      btnSend.addEventListener('click', handleSendMessage);
+    }
+    if (chatInput) {
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleSendMessage();
+      });
+    }
+
+    if (window.__mpAgentInitialized) {
+      window.__mpAgentInitialized.uiMounted = true;
+    }
 
     console.log('[Michael Pen Bridge] Widget y puente universal inicializados con voz Charon y avatar oficial.');
   }

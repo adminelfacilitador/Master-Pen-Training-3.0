@@ -265,3 +265,16 @@ export interface AuditLogEntry {
   metadata?: Record<string, any>;
   ipOrDevice?: string;
 }
+
+// MÓDULO 6: Seguimiento del Modo Enfoque & Posición de Lectura
+export interface LastReadPosition {
+  blockId: string;
+  blockTitle?: string;
+  slideIndex: number;
+  slideTitle?: string;
+  scrollPercentage: number;
+  timestamp: string; // ISO 8601
+  sessionDurationSeconds: number; // Duration of focus session
+  totalFocusTimeSeconds?: number;
+}
+
